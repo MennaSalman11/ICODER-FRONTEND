@@ -1,6 +1,15 @@
 "use client";
 
 import { Book, Menu, Sunset, Trees, User, Zap } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import {
   Accordion,
@@ -27,6 +36,8 @@ import {
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { PiSignOut } from "react-icons/pi";
+import { useState } from "react";
+import { FaUser } from "react-icons/fa";
 interface MenuItem {
   title: string;
   url: string;
@@ -61,26 +72,112 @@ const Navbar = ({
   const {data:session , status} = useSession();
 console.log("Current Status:", status);
 console.log("Current Session:", session);
-
+  const [userData, setUserData] = useState<any>(null);
   
   return (
     <section className=" absolute top-0 left-0 w-full z-50 bg-transparent">
-      <div className="container mx-auto px-4 lg:px-8">
+      <div className="container mx-auto px-4 lg:px-8 my-7 bg-orange-100">
         {/* Desktop Menu */}
         <nav className="hidden items-center justify-between lg:flex">
-          <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-
-
-            <div className="flex items-center">
-              <Link href="/" className="text-3xl text-orange-400 font-bold tracking-tighter text-foreground">
-              ICoder
-            </Link>
-            </div>
-          </div>
+      <div className="flex items-center gap-8">
+    <Link href="/" className="text-3xl text-orange-400 font-bold tracking-tighter">
+      ICoder
+    </Link>
+{
+  status === "authenticated" && (
+    <div className="flex items-center gap-6">
+      <Link href="/problems" className="text-black hover:text-orange-300 font-medium transition">
+        Problems
+      </Link> 
+      <Link href="/contests" className="text-black hover:text-orange-300 font-medium transition">
+        Contests
+      </Link>
+    </div>
+  )
+}
+    {/* <div className="flex items-center gap-6">
+      <Link href="/problems" className="text-black hover:text-orange-300 font-medium transition">
+        Problems
+      </Link>
+    
+      <Link href="/contests" className="text-black hover:text-orange-300 font-medium transition">
+        Contests
+      </Link>
+    </div> */}
+  </div>
        
           <div className="flex items-center gap-4">
-        {status === "loading" ? (
+    {status === "loading" ? (
+      <span className="text-sm text-muted-foreground animate-pulse">Loading...</span>
+    ) : status === "unauthenticated" ? (
+      <div className="flex items-center gap-2">
+        <Button asChild variant="ghost" className="text-white hover:text-orange-300">
+          <Link href="/login">Login</Link>
+        </Button>
+        <Button asChild className="bg-orange-400 text-white hover:bg-orange-500">
+          <Link href="/register">Sign Up</Link>
+        </Button>
+      </div>
+    ) : (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="flex items-center gap-2 text-blue-950 hover:text-blue-900 cursor-pointer">
+            <User size={18} className="text-orange-400 size-7" />
+            <span className="text-lg">{session?.user?.handle || session?.user?.name || "User"}</span>
+               {/* {
+                   userData.picture_url ? (
+                  <img src={userData.picture_url} alt="profileImg" className="w-16 h-16 rounded-full" />
+           
+                   ) :(
+           <div>
+           
+             <FaUser className="w-16 h-16 text-gray-400 rounded-full bg-gray-200 p-2" />
+           </div>
+                   )
+                 } */}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel> <span>{session?.user?.handle || session?.user?.name || "User"}</span></DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href={`/profile/${session?.user?.handle}`} className="cursor-pointer">
+              Profile
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => signOut({ callbackUrl: "/login" })}>
+            <PiSignOut className="mr-2 size-4" />
+            Logout
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )}
+  </div>
+        </nav>
+
+        {/* Mobile Menu */}
+        <div className="block lg:hidden">
+          <div className="flex items-center justify-between">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Menu className="size-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>
+                    Navigation Menu
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-6 p-4">
+                    <Link href="/" className="text-2xl font-bold tracking-tighter text-foreground">
+              ICoder
+            </Link>
+              
+
+                  <div className="flex flex-col gap-3">
+                      {status === "loading" ? (
   <span className="text-sm text-muted-foreground animate-pulse">
     Loading...
   </span>
@@ -95,11 +192,10 @@ console.log("Current Session:", session);
   </div>
 ) : (
   <div className="flex items-center gap-4">
-   {/* <span className="text-sm font-medium text-black">
-    Welcome, {session?.user?.handle || session?.user?.name || "User"}
-  </span> */}
+ 
 
 {status === "authenticated" ? (
+  <>
           <Link 
             href={`/profile/${session?.user?.handle}`}
             className="flex items-center gap-2 bg-orange-400 px-4 py-2 rounded hover:bg-orange-500 transition"
@@ -107,11 +203,7 @@ console.log("Current Session:", session);
             <User size={18} />
            {session?.user?.handle || session?.user?.name || "User"}
           </Link>
-        ) : (
-          <Link href="/login">Login</Link>
-        )}
-
-    <Link href="/problems" className="text-black hover:text-gray-300 text-sm font-medium">
+            <Link href="/problems" className="text-black hover:text-gray-300 text-sm font-medium">
       Problems
     </Link>
     <Button
@@ -122,60 +214,14 @@ console.log("Current Session:", session);
       Logout
       <PiSignOut className=" size-4 text-white" />
     </Button>
+        </>
+        ) : (
+          <Link href="/login">Login</Link>
+        )}
+
+  
   </div>
 )}
-
-          </div>
-        </nav>
-
-        {/* Mobile Menu */}
-        <div className="block lg:hidden">
-          <div className="flex items-center justify-between">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Menu className="size-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="overflow-y-auto">
-                <SheetHeader>
-                  {/* <SheetTitle>
-                  </SheetTitle> */}
-                </SheetHeader>
-                <div className="flex flex-col gap-6 p-4">
-                    <Link href="/" className="text-2xl font-bold tracking-tighter text-foreground">
-              ICoder
-            </Link>
-              
-
-                  <div className="flex flex-col gap-3">
-                    {status==='loading'? <>
-            <span>Loading....</span>
-            </> :
-            (
-         status==='unauthenticated'?
-         <>
-           <Button asChild variant="outline" size="sm">
-              <Link href='/login'>login</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href='/register'>sign up</Link>
-            </Button>
-         </>:
-         <>
-         <Button asChild variant='outline'>
-          <Link href='#'>Problems</Link>
-         </Button>
-          <Button
-  size="sm"
-  variant="destructive"
-  onClick={() => signOut({ callbackUrl: "/login" })} 
->
-  sign out
-</Button>
-         </>
-            )
-            }
                   </div>
                 </div>
               </SheetContent>

@@ -30,4 +30,5 @@ catch(error){
         data:{message: 'cannot update general settings data'}
     }}
 }
+
     
