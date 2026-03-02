@@ -11,6 +11,7 @@
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
     "@hookform/resolvers": "^5.2.2",
+    "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -20,6 +21,7 @@
     "better-react-mathjax": "^3.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "js-cookie": "^3.0.5",
     "lucide-react": "^0.554.0",
     "next": "16.0.4",
     "next-auth": "^4.24.13",
@@ -35,6 +37,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

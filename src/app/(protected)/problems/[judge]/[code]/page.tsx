@@ -1,17 +1,19 @@
-// ⚠️ مفيش "use client" هنا!
+
 import { getSpecificProblem } from '@/src/lib/services/specificProblem.services';
 import ProblemUI from './ProblemUI';
-// import ProblemUI from './ProblemUI'; // هنكريت الملف ده دلوقتي
+import { getLanguageList } from '@/src/lib/services/codingEditor.services';
 
-export default async function Page({ params }: { params: Promise<{ judge: string, code: string }> }) {
-    const { judge, code } = await params;
+export default async function Page(props: { params: Promise<{ judge: string, code: string }> }) {
+    const params = await props.params;
+    const judge = params.judge;
+    const code = params.code;
     
     const res = await getSpecificProblem(judge, code);
-console.log('Response from service:', res); // دي هتساعدنا نعرف إذا كانت الداتا بتيجي صح ولا لأ
+    const languages = await getLanguageList();
+console.log("Fetched langueges:", languages);
     if (!res || res.status) {
         return <div className="p-10 text-center">Problem not found!</div>;
     }
 
-    // بنبعت الداتا الجاهزة للـ Client Component
-    return <ProblemUI data={res} />;
+    return <ProblemUI data={res} languagesList={languages} />;
 }

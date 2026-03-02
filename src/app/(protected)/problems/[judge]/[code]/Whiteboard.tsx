@@ -10,18 +10,37 @@ export default function Whiteboard() {
   const [isEraser, setIsEraser] = useState(false);
 
   // تجهيز الكانفاس أول ما الصفحة تفتح
-  useEffect(() => {
+useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-      }
-      // تظبيط مقاس الكانفاس ليناسب الشاشة
-      canvas.width = canvas.parentElement?.clientWidth || 800;
-      canvas.height = canvas.parentElement?.clientHeight || 600;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
     }
+
+    // دالة لضبط المقاسات
+    const updateSize = () => {
+      const parent = canvas.parentElement;
+      if (parent) {
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+        
+        // إعادة ضبط الـ context بعد تغيير المقاس لأن المسح بيحصل أوتوماتيك
+        if (ctx) {
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+        }
+      }
+    };
+
+    // تشغيلها فوراً
+    updateSize();
+
+    // تشغيلها لو مقاس الشاشة اتغير
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
   }, []);
 
   // دالة بدء الرسم
@@ -58,20 +77,22 @@ export default function Whiteboard() {
     }
   };
 
-  return (
-    <div className="flex flex-col h-full bg-white rounded-xl border shadow-sm overflow-hidden relative">
-      {/* الـ Toolbar الشيك اللي في الصورة */}
-      <div className="flex items-center justify-between p-3 border-b bg-gray-50/50 z-10">
+return (
+    <div className="flex flex-col h-full min-h-[500px] bg-white rounded-xl border shadow-sm overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between p-3 border-b bg-gray-50/50 z-20">
         <div className="flex items-center gap-2 bg-white p-1 rounded-lg border shadow-sm">
           <button 
+            type="button"
             onClick={() => setIsEraser(false)}
-            className={`p-2 rounded-md ${!isEraser ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
+            className={`p-2 rounded-md transition-all ${!isEraser ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             <Pencil size={18} />
           </button>
           <button 
+            type="button"
             onClick={() => setIsEraser(true)}
-            className={`p-2 rounded-md ${isEraser ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
+            className={`p-2 rounded-md transition-all ${isEraser ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             <Eraser size={18} />
           </button>
@@ -81,23 +102,24 @@ export default function Whiteboard() {
           </button>
         </div>
         
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Scratchpad Mode</p>
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest hidden sm:block">Scratchpad Mode</p>
       </div>
 
       {/* مساحة الرسم */}
-      <div className="relative flex-1 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] cursor-crosshair">
+      {/* تأكدي إن الـ flex-1 واخدة h-full */}
+      <div className="relative flex-1 w-full h-full bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] cursor-crosshair overflow-hidden">
         <canvas 
           ref={canvasRef}
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
-          onMouseOut={stopDrawing}
-          className="absolute inset-0 w-full h-full"
+          onMouseLeave={stopDrawing}
+          className="absolute inset-0 block touch-none z-10" // touch-none مهم للموبايل والـ z-10 عشان يكون فوق الـ Grid
         />
         
-        {/* كلمة Draw your algorithm here المختفية */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] select-none">
-          <h2 className="text-5xl font-black text-center">DRAW YOUR<br/>ALGORITHM HERE</h2>
+        {/* النص الخلفي */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.05] select-none z-0">
+          <h2 className="text-6xl font-black text-center leading-none">DRAW YOUR<br/>ALGORITHM</h2>
         </div>
       </div>
     </div>

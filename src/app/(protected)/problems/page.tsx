@@ -1,5 +1,5 @@
 "use client";
-import React, { use, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Filter, RotateCcw, ChevronLeft, ChevronRight, CheckCircle2, Clock, Star, Link, SwitchCamera } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 // import { is } from 'zod/v4/locales';
 // import ProblemsTable from '@/src/components/problemTable';
 import ProblemTable from '@/src/components/problemTable';
-import { getSharp } from 'next/dist/server/image-optimizer';
+// import { getSharp } from 'next/dist/server/image-optimizer';
 
 interface ProblemFilters {
   online_judge: string;
@@ -37,6 +37,7 @@ interface ProblemWithoutFilters {
   sort: string;
   page: number;
 }
+// import { useContext } from 'react';
 // import { getProblems } from "@/src/lib/services/problems.services";
 export default function ProblemPage() {
   const [newProblemCode, setNewProblemCode] = useState('');
@@ -188,7 +189,6 @@ export default function ProblemPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-8 pt-24">
     <div className="max-w-7xl mx-auto">
-
       {/* 1. Header Section */}
       <div className="flex justify-between items-start mb-8 ">
         <div>
@@ -236,7 +236,7 @@ export default function ProblemPage() {
           <div className="md:col-span-3 flex gap-2">
             <Button
               disabled={load}
-              className="flex-1 bg-[#1e3a8a] hover:bg-[#1e293b] gap-2"
+              className="flex-1 bg-[#1b4583] hover:bg-[#08316e] gap-2"
               onClick={onFilterClick}
             >
               {load ? (
@@ -319,6 +319,6 @@ export default function ProblemPage() {
         © 2025 ICoder. Built for excellence in competitive programming.
       </p>
     </div>
-    // </div>
+    </div>
   );
 }
