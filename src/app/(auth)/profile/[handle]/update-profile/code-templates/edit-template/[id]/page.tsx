@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,7 +9,7 @@ import { useProblem } from '@/src/components/context/problemContext';
 import { useTemplateContext } from '@/src/components/context/TemplatesContext';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
-import { createTemplate } from '@/src/lib/services/templates.services';
+import {  editTemplate } from '@/src/lib/services/templates.services';
 import { useRouter } from 'next/navigation'; // اختياري للتحويل بعد النجاح
 import { Editor } from '@monaco-editor/react';
 
@@ -26,7 +26,8 @@ type TemplateFormData = z.infer<typeof templateSchema>;
 export default function CreateTemplatePage() {
   const { data: session } = useSession();
   const { languages , selectedLanguage} = useProblem();
-  const { setPage } = useTemplateContext(); // بنحتاجه عشان الـ refresh
+  const { setPage ,  selectedTemplate
+  } = useTemplateContext(); 
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -34,21 +35,24 @@ export default function CreateTemplatePage() {
   const { register, handleSubmit, watch, control,reset ,formState: { errors } } = useForm<TemplateFormData>({
     resolver: zodResolver(templateSchema),
     defaultValues: {
-      code: "",
-      language_id: "",
-      template_name: ""
+      code:selectedTemplate?.code ,
+      language_id:selectedTemplate?.language_id.toString(),
+      template_name: selectedTemplate?.template_name
     }
   });
 const selectedLanguageId = watch("language_id");
 const currentLanguage = languages.find(lang => lang.id === (selectedLanguageId));
   const onSubmit = async (data: TemplateFormData) => {
     const token = (session as any)?.accessToken;
-
+if (!selectedTemplate?.template_id) {
+    toast.error("Template selection error");
+    return;
+  }
     if (!token) {
       toast.error("no token found, please login again");
       return;
     }
-
+const templateIdAsNumber = Number(selectedTemplate.template_id);
     try {
       setIsLoading(true);
       
@@ -59,44 +63,54 @@ const currentLanguage = languages.find(lang => lang.id === (selectedLanguageId))
         created_and_updated_at: new Date().toISOString()
       };
 
-      await createTemplate(Payload, token);
+      await editTemplate(Payload, templateIdAsNumber);
       
-      toast.success("Template created successfully");
+      toast.success("Edit Templates successfully");
       
       setPage(0); 
-            setTimeout(() => router.push('./'), 1500);
+            setTimeout(() => router.back(), 1500);
 
     } catch (error) {
       console.error(error);
-      toast.error("Failed to create template");
+      toast.error("Failed to edit template");
     } finally {
       setIsLoading(false);
     }
    
   };
-const onInvalid = (errors: any) => {
-  if (errors.template_name) toast.error(errors.template_name.message);
-  else if (errors.language_id) toast.error(errors.language_id.message);
-  else if (errors.code) toast.error(errors.code.message);
-  else toast.error("Please check the form fields");
-};
+// const onInvalid = (errors: any) => {
+//   if (errors.template_name) toast.error(errors.template_name.message);
+//   else if (errors.language_id) toast.error(errors.language_id.message);
+//   else if (errors.code) toast.error(errors.code.message);
+//   else toast.error("Please check the form fields");
+// };
 const handleReset =() =>{
 reset();
 router.back();
 };
+useEffect(()=>{
+  console.log("Selected Template Data:", selectedTemplate);
+  if(selectedTemplate){
+    reset({
+      code:selectedTemplate?.code ,
+      language_id:selectedTemplate?.language_id.toString(),
+      template_name: selectedTemplate?.template_name
+    })
+  }
+},[selectedTemplate , reset])
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-12 font-sans">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#0F172A]">Create New Template</h1>
+          <h1 className="text-3xl font-bold text-[#0F172A]">Update Template</h1>
           <p className="text-slate-500 mt-2">
-            Define a reusable code snippet for your projects. Save time by automating your most used patterns.
+            Modify your existing code snippet. Changes will be saved immediately.
           </p>
         </div>
 
         {/* Main Card */}
-        <form onSubmit={handleSubmit(onSubmit , onInvalid)} className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-8 md:p-10">
+        <form onSubmit={handleSubmit(onSubmit )} className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-8 md:p-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             {/* Template Name */}
             <div className="space-y-3">
@@ -185,7 +199,7 @@ router.back();
               onClick={handleReset}
               className="px-10 py-3.5 rounded-2xl font-bold text-[#1E3A8A] bg-[#EFF6FF] hover:bg-[#DBEAFE] transition-all"
             >
-              Cancel
+             Reset Changes
             </button>
             <button 
               type="submit"
