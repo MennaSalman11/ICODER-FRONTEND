@@ -60,25 +60,19 @@ const handleViewDetails = async (id: number) => {
       }
     }
   };
-// 1. تأكدي إن setTemplates موجودة هنا
 
 const handleToggle = async (id: number, force: boolean) => {
   try {
-    // نبعت للـ API
     await toggleTemplateStatus(id, force);
 
-    // 2. تحديث الـ Context فوراً (Optimistic Update)
-    // بنقوله: خد لستة التمبلتس القديمة، ولف عليها، اللي تلاقي الأيدي بتاعه زي اللي دوسنا عليه، غير الـ enabled بتاعته
     const updatedTemplates = templates.map((t) => 
       Number(t.template_id) === id ? { ...t, enabled: force } : t
     );
     
-    // بنحط اللستة الجديدة في الـ Context
     setTemplates(updatedTemplates);
 
     toast.success(`Template ${force ? 'Enabled' : 'Disabled'} successfully`);
     
-    // دي زيادة تأكيد عشان لو فيه Server Action تانية
     router.refresh();
 
   } catch (error) {

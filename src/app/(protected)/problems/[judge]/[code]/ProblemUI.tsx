@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import Whiteboard from "./Whiteboard";
-
+import { useSession } from "next-auth/react";
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
   { ssr: false }
@@ -21,6 +21,7 @@ import { getSpecificProblemByCrawler } from "@/src/lib/services/specificProblem.
 import { useProblem } from "@/src/components/context/problemContext";
 import { getBatchSubmissionResult, getSubmissionResult, submitBatchCode, submitCode } from "@/src/lib/services/codingEditor.services";
 import { BatchSubmissionSchema, SubmissionSchema } from "@/src/schema/submission.schema";
+import { getActiveTemplateByLanguag } from "@/src/lib/services/templates.services";
 
 const normalizeHtml = (html = "") => {
   return html
@@ -29,6 +30,7 @@ const normalizeHtml = (html = "") => {
 };
 
 export default function ProblemUI({ data }: { data: any }) {
+  const {data : session} = useSession()
 
   const {
     languages,
@@ -225,14 +227,28 @@ export default function ProblemUI({ data }: { data: any }) {
     }
   };
 
-
-
-  useEffect(() => {
-    if (currentLangObj) {
-      setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
+useEffect(()=>{
+  const fetchTemplate = async ()=>{
+    if(!selectedLanguage || !isMounted) return ;
+    const token = (session as any)?.accessToken;
+    if(token){
+  try {
+      const activeTemplate = await getActiveTemplateByLanguag(Number(selectedLanguage) , token)
+      if(activeTemplate && activeTemplate.code){
+        setSourceCode(activeTemplate.code);
+        return;
+      }
+    } catch (error) {
+      console.log(error)
     }
-  }, [selectedLanguage]);
+    }
+      if (currentLangObj) {
+        setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
+      }
+  };
 
+fetchTemplate();
+},[selectedLanguage, session, isMounted])
   return (
     <div className="flex flex-col h-screen w-full bg-[#f8f9fa] overflow-hidden text-black mt-14">
 

@@ -99,3 +99,17 @@ export const getTemplateById = async (id: number): Promise<TemplateContent> => {
     if (!res.ok) throw new Error("Failed to fetch template details");
     return res.json();
 }
+
+// retrieve temlate in problem ui
+export const getActiveTemplateByLanguag = async (languageId : number , token : string) =>{
+
+    const res = await fetch(`http://localhost:9090/api/v1/coding/editor/templates/active/${languageId}`,{
+        method:'GET',
+        headers:{
+            "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+        },
+    });
+    if (!res.ok) return null; 
+  return res.json();
+}
