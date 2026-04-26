@@ -45,7 +45,6 @@ export default function LoginPage() {
         toast.success("Login successfully", {
           position: 'top-center'
         })
-        // التوجيه للصفحة الرئيسية أو البروفايل
         router.push('/')
         router.refresh() 
       } else {

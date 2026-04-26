@@ -1,7 +1,6 @@
 import NextAuth, { NextAuthOptions, DefaultSession, User as NextAuthUser } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-// 1. توحيد التعريفات هنا
 declare module "next-auth" {
   interface Session {
     user: {
@@ -9,6 +8,7 @@ declare module "next-auth" {
       handle?: string;
       nickname?: string;
       numericId?: string;
+      accessToken?: string;
     } & DefaultSession["user"]; // دمج مع التعريف الأساسي
     accessToken?: string;
     
@@ -33,7 +33,6 @@ declare module "next-auth/jwt" {
   }
 }
 
-// 2. الكود الأساسي
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({

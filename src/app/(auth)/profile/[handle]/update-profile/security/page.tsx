@@ -109,7 +109,6 @@ const handleReset = () => {
                 className="w-full p-3 rounded-xl border border-gray-200 focus:border-orange-400 outline-none transition-all"
               />
               {errors.new_password && <p className="text-red-500 text-xs mt-1">{errors.new_password.message}</p>}
-              <EyeOff className="absolute right-4 top-10 text-gray-400 cursor-pointer" size={18} />
               <p className="text-[10px] text-gray-400 mt-1">Min. 8 characters</p>
             </div>
             <div className="relative">
@@ -121,7 +120,6 @@ const handleReset = () => {
                 className="w-full p-3 rounded-xl border border-gray-200 focus:border-orange-400 outline-none transition-all"
               />
               {errors.password_confirmation && <p className="text-red-500 text-xs mt-1">{errors.password_confirmation.message}</p>}
-              <EyeOff className="absolute right-4 top-10 text-gray-400 cursor-pointer" size={18} />
               <p className="text-[10px] text-gray-400 mt-1">Min. 8 characters</p>
             </div>
           </div>
