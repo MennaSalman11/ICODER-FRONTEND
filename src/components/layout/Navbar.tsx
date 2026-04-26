@@ -58,11 +58,11 @@ interface Navbar1Props {
 const Navbar = ({
 
 }: Navbar1Props) => {
-  const {data:session , status} = useSession();
-console.log("Current Status:", status);
-console.log("Current Session:", session);
+  const { data: session, status } = useSession();
+  console.log("Current Status:", status);
+  console.log("Current Session:", session);
 
-  
+
   return (
     <section className=" absolute top-0 left-0 w-full z-50 bg-transparent">
       <div className="container mx-auto px-4 lg:px-8">
@@ -74,56 +74,59 @@ console.log("Current Session:", session);
 
             <div className="flex items-center">
               <Link href="/" className="text-3xl text-orange-400 font-bold tracking-tighter text-foreground">
-              ICoder
-            </Link>
+                ICoder
+              </Link>
             </div>
           </div>
-       
+
           <div className="flex items-center gap-4">
-        {status === "loading" ? (
-  <span className="text-sm text-muted-foreground animate-pulse">
-    Loading...
-  </span>
-) : status === "unauthenticated" ? (
-  <div className="flex items-start">
-    <Button asChild variant="ghost" className="text-2xl m-2 text-white hover:bg-white/10 hover:text-orange-300 transition-all duration-300">
-      <Link href="/login">login</Link>
-    </Button>
-    <Button asChild className="m-2 text-2xl text-orange-300 hover:bg-gray-200 px-5 font-semibold">
-      <Link href="/register">sign Up</Link>
-    </Button>
-  </div>
-) : (
-  <div className="flex items-center gap-4">
-   {/* <span className="text-sm font-medium text-black">
+            {status === "loading" ? (
+              <span className="text-sm text-muted-foreground animate-pulse">
+                Loading...
+              </span>
+            ) : status === "unauthenticated" ? (
+              <div className="flex items-start">
+                <Button asChild variant="ghost" className="text-2xl m-2 text-white hover:bg-white/10 hover:text-orange-300 transition-all duration-300">
+                  <Link href="/login">login</Link>
+                </Button>
+                <Button asChild className="m-2 text-2xl text-orange-300 hover:bg-gray-200 px-5 font-semibold">
+                  <Link href="/register">sign Up</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                {/* <span className="text-sm font-medium text-black">
     Welcome, {session?.user?.handle || session?.user?.name || "User"}
   </span> */}
 
-{status === "authenticated" ? (
-          <Link 
-            href={`/profile/${session?.user?.handle}`}
-            className="flex items-center gap-2 bg-orange-400 px-4 py-2 rounded hover:bg-orange-500 transition"
-          >
-            <User size={18} />
-           {session?.user?.handle || session?.user?.name || "User"}
-          </Link>
-        ) : (
-          <Link href="/login">Login</Link>
-        )}
+                {status === "authenticated" ? (
+                  <Link
+                    href={`/profile/${session?.user?.handle}`}
+                    className="flex items-center gap-2 bg-orange-400 px-4 py-2 rounded hover:bg-orange-500 transition"
+                  >
+                    <User size={18} />
+                    {session?.user?.handle || session?.user?.name || "User"}
+                  </Link>
+                ) : (
+                  <Link href="/login">Login</Link>
+                )}
 
-    <Link href="/problems" className="text-black hover:text-gray-300 text-sm font-medium">
-      Problems
-    </Link>
-    <Button
-      size="sm"
-      variant="destructive"
-      onClick={() => signOut({ callbackUrl: "/login" })}
-    >
-      Logout
-      <PiSignOut className=" size-4 text-white" />
-    </Button>
-  </div>
-)}
+                <Link href="/problems" className="text-black hover:text-gray-300 text-sm font-medium">
+                  Problems
+                </Link>
+                <Link href="/groups" className="text-black hover:text-gray-300 text-sm font-medium">
+                  Groups
+                </Link>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                >
+                  Logout
+                  <PiSignOut className=" size-4 text-white" />
+                </Button>
+              </div>
+            )}
 
           </div>
         </nav>
@@ -143,39 +146,40 @@ console.log("Current Session:", session);
                   </SheetTitle> */}
                 </SheetHeader>
                 <div className="flex flex-col gap-6 p-4">
-                    <Link href="/" className="text-2xl font-bold tracking-tighter text-foreground">
-              ICoder
-            </Link>
-              
+                  <Link href="/" className="text-2xl font-bold tracking-tighter text-foreground">
+                    ICoder
+                  </Link>
+
 
                   <div className="flex flex-col gap-3">
-                    {status==='loading'? <>
-            <span>Loading....</span>
-            </> :
-            (
-         status==='unauthenticated'?
-         <>
-           <Button asChild variant="outline" size="sm">
-              <Link href='/login'>login</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href='/register'>sign up</Link>
-            </Button>
-         </>:
-         <>
-         <Button asChild variant='outline'>
-          <Link href='#'>Problems</Link>
-         </Button>
-          <Button
-  size="sm"
-  variant="destructive"
-  onClick={() => signOut({ callbackUrl: "/login" })} 
->
-  sign out
-</Button>
-         </>
-            )
-            }
+                    {status === 'loading' ? <>
+                      <span>Loading....</span>
+                    </> :
+                      (
+                        status === 'unauthenticated' ?
+                          <>
+                            <Button asChild variant="outline" size="sm">
+                              <Link href='/login'>login</Link>
+                            </Button>
+                            <Button asChild size="sm">
+                              <Link href='/register'>sign up</Link>
+                            </Button>
+                          </> :
+                          <>
+                            <Button asChild variant='outline'>
+                              <Link href='#'>Problems</Link>
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => signOut({ callbackUrl: "/login" })}
+                            >
+                              sign out
+                            </Button>
+                          </>
+                      )
+                    }
                   </div>
                 </div>
               </SheetContent>

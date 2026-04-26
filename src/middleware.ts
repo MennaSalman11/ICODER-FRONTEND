@@ -1,26 +1,31 @@
-import { getToken } from 'next-auth/jwt'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
- 
+import { getToken } from "next-auth/jwt";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-    const token = await getToken({req: request});
-    const {pathname} = request.nextUrl;
+  const token = await getToken({ req: request });
+  const { pathname } = request.nextUrl;
 
-    const authRoutes =['/login' , '/register']
-    const protectedRoutes =['/profile']
+  const authRoutes = ["/login", "/register"];
 
-    if(token && authRoutes.includes(pathname)){
-         return NextResponse.redirect(new URL('/', request.url))
-    }
+  const isAuthRoute = authRoutes.includes(pathname);
+  const isProtectedRoute =
+    pathname.startsWith("/profile") ||
+    pathname.startsWith("/groups");
 
-     if(!token && protectedRoutes.includes(pathname)){
-         return NextResponse.redirect(new URL('/login', request.url))
-    }
-  
+  // لو عامل login ورايح login تاني
+  if (token && isAuthRoute) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  // لو مش عامل login ورايح route محمي
+  if (!token && isProtectedRoute) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  return NextResponse.next();
 }
- 
 
 export const config = {
-  matcher: [ '/profile'],
-}
+  matcher: ["/profile/:path*", "/groups/:path*"],
+};

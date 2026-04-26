@@ -8,8 +8,10 @@ declare module "next-auth" {
       id: string;
       handle?: string;
       nickname?: string;
+      numericId?: string;
     } & DefaultSession["user"]; // دمج مع التعريف الأساسي
     accessToken?: string;
+    
   }
 
   interface User {
@@ -17,6 +19,7 @@ declare module "next-auth" {
     handle: string;
     nickname?: string;
     userToken?: string;
+    numericId?: string;
   }
 }
 
@@ -26,6 +29,7 @@ declare module "next-auth/jwt" {
     handle?: string;
     nickname?: string;
     accessToken?: string;
+    numericId?: string;
   }
 }
 
@@ -58,11 +62,13 @@ export const authOptions: NextAuthOptions = {
 
           
           return {
-            id: String(decode.sub || "1"),
+            id: String(decode.sub || "1") ,
             handle: decode.sub, 
             nickname: decode.nickname || decode.sub,
             email: decode.email || "no-email@example.com",
             userToken: data.access_token,
+            numericId: String(data.user_id)
+            
           };
         } catch (error) {
           console.error("Login Error:", error);
@@ -70,6 +76,8 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
+
+    
   ],
   callbacks: {
     async jwt({ token, user }) {
@@ -78,6 +86,7 @@ export const authOptions: NextAuthOptions = {
         token.handle = user.handle;
         token.nickname = user.nickname;
        token.accessToken = user.userToken;
+       token.numericId = (user as any).numericId;
       }
       return token;
     },
@@ -86,6 +95,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.handle = token.handle;
         session.user.nickname = token.nickname;
+        (session.user as any).numericId = token.numericId;
       }
       (session as any).accessToken = token.accessToken;
       return session;
