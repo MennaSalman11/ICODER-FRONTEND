@@ -183,14 +183,14 @@ router.back();
             <button 
               type="button"
               onClick={handleReset}
-              className="px-10 py-3.5 rounded-2xl font-bold text-[#1E3A8A] bg-[#EFF6FF] hover:bg-[#DBEAFE] transition-all"
+              className="px-8 py-3 rounded-2xl font-bold text-[#1E3A8A] bg-[#EFF6FF] hover:bg-[#DBEAFE] transition-all"
             >
               Cancel
             </button>
             <button 
               type="submit"
               disabled={isLoading}
-              className={`px-10 py-3.5 rounded-2xl font-bold text-white bg-[#FF824D] hover:bg-[#f3723a] shadow-lg transition-all ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`px-8 py-3 rounded-2xl font-bold text-white bg-[#FF824D] hover:bg-[#f3723a] shadow-lg transition-all ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {isLoading ? "Saving..." : "Save Template"}
             </button>

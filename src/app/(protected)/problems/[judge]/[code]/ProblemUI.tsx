@@ -22,6 +22,7 @@ import { useProblem } from "@/src/components/context/problemContext";
 import { getBatchSubmissionResult, getSubmissionResult, submitBatchCode, submitCode } from "@/src/lib/services/codingEditor.services";
 import { BatchSubmissionSchema, SubmissionSchema } from "@/src/schema/submission.schema";
 import { getActiveTemplateByLanguag } from "@/src/lib/services/templates.services";
+import Submissions from "./Submissions";
 
 const normalizeHtml = (html = "") => {
   return html
@@ -297,12 +298,7 @@ fetchTemplate();
             <Play className={`size-3.5 ${loading ? 'text-green-400' : 'fill-green-600'}`} />
             {loading ? "Running..." : "Run Samples"}
           </button>
-          <button
-            disabled={loading}
-            className="cursor-pointer flex items-center gap-2 bg-[#1a4b8f] text-white px-5 py-1.5 rounded text-[11px] font-bold hover:bg-[#153a6f] shadow-sm transition-all"
-          >
-            <Send className="size-3.5" /> {loading ? "Submitting..." : "Submit"}
-          </button>
+       
         </div>
       </header>
 
@@ -377,7 +373,7 @@ fetchTemplate();
               </TabsContent>
               <TabsContent value="submissions" className="tab-style">
 
-                <MessageSquare className="size-4 mr-2" /> Submissions
+                <Submissions />
 
               </TabsContent>
               <TabsContent value="whiteboard" className="tab-style">

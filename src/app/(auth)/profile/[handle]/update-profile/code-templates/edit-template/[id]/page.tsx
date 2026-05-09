@@ -78,12 +78,7 @@ const templateIdAsNumber = Number(selectedTemplate.template_id);
     }
    
   };
-// const onInvalid = (errors: any) => {
-//   if (errors.template_name) toast.error(errors.template_name.message);
-//   else if (errors.language_id) toast.error(errors.language_id.message);
-//   else if (errors.code) toast.error(errors.code.message);
-//   else toast.error("Please check the form fields");
-// };
+
 const handleReset =() =>{
 reset();
 router.back();

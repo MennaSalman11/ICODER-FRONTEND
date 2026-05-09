@@ -37,10 +37,10 @@ const Navbar = () => {
           <Link href="/" className="flex items-center gap-2">
             {/* Logo Wrapper */}
             <div className="flex items-center gap-1.5">
-               <div className="w-5 h-7 bg-[#1e3a8a] rounded-[2px] relative overflow-hidden">
+               {/* <div className="w-5 h-7 bg-[#1e3a8a] rounded-[2px] relative overflow-hidden">
                   <div className="absolute bottom-0 w-full h-1/2 bg-[#ef4444]"></div>
-               </div>
-               <span className="text-2xl font-bold text-[#0f172a] tracking-tight">Coder</span>
+               </div> */}
+               <span className="text-2xl font-bold text-[#0f172a] tracking-tight">ICoder</span>
             </div>
           </Link>
 

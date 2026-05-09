@@ -101,27 +101,39 @@ export default function ProblemPage() {
   };
 
   // handle filter button click
-  const onFilterClick = async () => {
+const onFilterClick = async () => {
+  // 1. التحقق من أن السيرش يحتوي على أرقام فقط
+  const isNumbersOnly = /^[0-9]+$/.test(filters.searchTerm);
 
-    if (filters.online_judge && filters.online_judge !== 'All Judges' && filters.searchTerm) {
-      setLoad(true);
-      try {
-        const result = await getSingleProblem(filters.online_judge, filters.searchTerm);
+  if (filters.searchTerm && !isNumbersOnly) {
+    // إظهار توست بالإنجليزية لو دخل حروف
+    toast.error("Please enter numbers only for the problem code.");
+    return; // توقف عن التنفيذ
+  }
 
-        if (result) {
-          setProblems([result]);
-        } else {
-          setProblems([]);
-          toast.error("No problem found with this code. Make sure you selected the correct Judge.")
-        }
-      } catch (error) {
-        console.error("Error fetching specific problem:", error);
+  if (filters.online_judge && filters.online_judge !== 'All Judges' && filters.searchTerm) {
+    setLoad(true);
+    try {
+      const judgeParam = filters.online_judge.toLowerCase();
+      const result = await getSingleProblem(judgeParam, filters.searchTerm);
+
+      if (result) {
+        setProblems([result]);
+      } else {
         setProblems([]);
-      } finally {
-        setLoad(false);
+        toast.error("No problem found with this code. Make sure you selected the correct Judge.");
       }
+    } catch (error) {
+      console.error("Error fetching specific problem:", error);
+      setProblems([]);
+      toast.error("An error occurred while fetching the problem.");
+    } finally {
+      setLoad(false);
     }
-  };
+  } else {
+    handleLoadData();
+  }
+};
 
   // favorite problem
   const handleFavorite = async (problemId: string, currentState: boolean) => {
@@ -226,12 +238,17 @@ export default function ProblemPage() {
           <div className="md:col-span-6 relative">
             <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Search Problem</label>
             <Search className="absolute left-3 bottom-3 text-slate-400" size={18} />
-            <Input
-              value={filters.searchTerm}
-              onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
-              className="pl-10 bg-slate-50"
-              placeholder="Search by ID or Title..."
-            />
+           <Input
+  value={filters.searchTerm}
+  onChange={(e) => {
+    const val = e.target.value;
+    if (val === '' || /^[0-9]+$/.test(val)) {
+      setFilters({ ...filters, searchTerm: val });
+    }
+  }}
+  className="pl-10 bg-slate-50"
+  placeholder="Enter Problem Code (Numbers)..."
+/>
           </div>
           <div className="md:col-span-3 flex gap-2">
             <Button
