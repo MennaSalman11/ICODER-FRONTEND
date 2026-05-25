@@ -1,46 +1,91 @@
 "use client"; 
-import React, { useEffect, useState } from 'react';
-import { Card } from "@/components/ui/card";
+
+import React, { useEffect, useState, useRef } from 'react';
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Code2, Globe, User, Send, Lock, Eye, EyeOff, Terminal } from "lucide-react";
-import { getLanguages, submitCodeSolution, toggleSubmissionOpenness } from '@/src/lib/services/submitCode.services';
+import { Globe, User, Send, Eye, EyeOff, Terminal, RefreshCw, CheckCircle, XCircle, Clock, ShieldAlert } from "lucide-react";
+import { 
+  getLanguages, 
+  submitCodeSolution, 
+  getUserSessionByJudge, 
+  addUserSession, 
+  updateUserSession, 
+  deleteUserSession, 
+  getSubmissionById 
+} from '@/src/lib/services/submitCode.services';
 import { useParams } from 'next/navigation';
 import { SubmissionFormValues, submissionSchema } from '@/src/schema/submitCode.schema';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
+import { useProblem } from '@/src/components/context/problemContext'; 
 
-const SubmitProblemPage = () => {
+interface SubmitProblemProps {
+  onSuccess?: () => void;
+}
+
+const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
   const { data: session } = useSession();
   const params = useParams();
+  const ojName = (params?.judge as string) || "";
+
+  // سحب اللغة الحالية والكود المكتوب في الـ Monaco Editor من الـ Context
+  const { selectedLanguage, sourceCode } = useProblem();
+
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<SubmissionFormValues>({
     resolver: zodResolver(submissionSchema) as any,
     defaultValues: {
-      online_judge: (params?.judge as string) || "",
+      online_judge: ojName,
       problem_code: (params?.code as string) || "",
       submission_method: "BOT", 
       opened: true,
-      code: "", 
-      language: "", 
+      code: sourceCode || "", 
+      language: selectedLanguage || "", 
       contest_id: null,
     }
   });
-  console.log(" Validation Errors:", errors);
 
   const submissionMethod = watch("submission_method");
   const isOpened = watch("opened");
+  const currentCode = watch("code");
+
+  // --- الـ States للـ Session والـ Polling ---
   const [languages, setLanguages] = useState<{id: string, display_name: string}[]>([]);
+  const [accountSession, setAccountSession] = useState<{ id: number; handle: string } | null>(null);
+  const [loadingSession, setLoadingSession] = useState(false);
+  const [showVerifyBlock, setShowVerifyBlock] = useState(false);
+  const [isUpdatingSession, setIsUpdatingSession] = useState(false); 
+  const [cookieValue, setCookieValue] = useState("");
+
+  const [createdSubmissionId, setCreatedSubmissionId] = useState<number | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<{
+    status: string;
+    time?: string;
+    length?: string;
+    lang?: string;
+    submittedAt?: string;
+  } | null>(null);
+
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // مزامنة الكود واللغة من الـ Monaco Editor فور فتح الـ Modal أو تغيرهم
+  useEffect(() => {
+    if (sourceCode) {
+      setValue("code", sourceCode, { shouldValidate: true });
+    }
+    if (selectedLanguage) {
+      setValue("language", selectedLanguage, { shouldValidate: true });
+    }
+  }, [sourceCode, selectedLanguage, setValue]);
 
   useEffect(() => {
     const fetchLangs = async () => {
-      const ojName = params?.judge as string; 
       if (ojName) {
         try {
           const data = await getLanguages(ojName);
           setLanguages(data);
-          if (data.length > 0) {
+          if (data.length > 0 && !selectedLanguage) {
             setValue("language", data[0].id);
           }
         } catch (err) {
@@ -49,151 +94,345 @@ const SubmitProblemPage = () => {
       }
     };
     fetchLangs();
-  }, [params?.judge, setValue]);
+  }, [ojName, setValue, selectedLanguage]);
 
-useEffect(() => {
-  if (session?.user?.numericId) {
-    const userId = Number(session.user.numericId);
-    if (!isNaN(userId)) {
-      setValue("user_id", userId, { shouldValidate: true }); 
-      console.log("✅ User ID Sync:", userId);
+  const fetchSessionStatus = async () => {
+    if (!ojName) return;
+    setLoadingSession(true);
+    const data = await getUserSessionByJudge(ojName);
+    if (data) {
+      // إجبار النظام على عرض الهاندل الفعلي لليوزر الحالي المسجل بالمنصة
+      const activeName = session?.user?.name || data.handle || "User Account";
+      setAccountSession({ id: data.id, handle: activeName });
+    } else {
+      setAccountSession(null);
     }
-  }
-}, [session, setValue]);
-  const onSubmit = async (data: SubmissionFormValues) => {
-    console.log("Submitting Data:", data);
-    toast.success("Submitting solution...");
+    setLoadingSession(false);
   };
-// handle submit code solution
 
-const onSubmitCode = async (data: SubmissionFormValues) => {
-  const toastId = toast.loading("Processing your submission..."); 
-  
-  try {
-    // Using numericId from the session as defined in our updated interface
-    const userId = session?.user?.numericId ? Number(session.user.numericId) : null;
+  useEffect(() => {
+    if (submissionMethod === "SESSION") {
+      fetchSessionStatus();
+    }
+  }, [submissionMethod, ojName, session]);
 
-    if (!userId) {
-      toast.error("User not found. Please log in again.", { id: toastId });
+  useEffect(() => {
+    if (session?.user?.numericId) {
+      const userId = Number(session.user.numericId);
+      if (!isNaN(userId)) setValue("user_id", userId, { shouldValidate: true }); 
+    }
+  }, [session, setValue]);
+
+  // تحديث الألوان لدعم الـ FAILED والـ RUNTIME_ERROR بشكل صحيح
+  const getBannerStyles = (verdict: string) => {
+    const v = verdict?.toUpperCase().trim();
+    
+    if (v === "ACCEPTED" || v === "AC") {
+      return { bg: "bg-green-50 border-green-200", text: "text-green-700", label: "Accepted", icon: <CheckCircle size={14} className="text-green-600" /> };
+    }
+    if (v === "WRONG_ANSWER" || v === "WA") {
+      return { bg: "bg-red-50 border-red-200", text: "text-red-700", label: "Wrong Answer", icon: <XCircle size={14} className="text-red-600" /> };
+    }
+    if (v === "RUNTIME_ERROR" || v === "RE" || v === "FAILED") {
+      return { bg: "bg-red-50 border-red-200", text: "text-red-700", label: v === "FAILED" ? "Failed" : "Runtime Error", icon: <XCircle size={14} className="text-red-600" /> };
+    }
+    if (v === "TIME_LIMIT_EXCEEDED" || v === "TLE") {
+      return { bg: "bg-purple-50 border-purple-200", text: "text-purple-700", label: "Time Limit Exceeded", icon: <Clock size={14} className="text-purple-600" /> };
+    }
+    if (v === "COMPILATION_ERROR" || v === "CE") {
+      return { bg: "bg-slate-50 border-slate-200", text: "text-slate-700", label: "Compilation Error", icon: <Terminal size={14} className="text-slate-600" /> };
+    }
+    if (v === "MEMORY_LIMIT_EXCEEDED" || v === "MLE") {
+      return { bg: "bg-cyan-50 border-cyan-200", text: "text-cyan-700", label: "Memory Limit Exceeded", icon: <XCircle size={14} className="text-cyan-600" /> };
+    }
+    
+    return { bg: "bg-amber-50 border-amber-200", text: "text-amber-700", label: "Pending...", icon: <RefreshCw size={14} className="animate-spin text-amber-600" /> };
+  };
+
+  // دالة الـ Polling مع تعديل شرط الإيقاف عند حدوث الفشل لمنع الـ Loop اللانهائي
+  const startTrackingStatus = (id: number) => {
+    if (pollingInterval.current) clearInterval(pollingInterval.current);
+
+    pollingInterval.current = setInterval(async () => {
+      try {
+        const data = await getSubmissionById(id);
+        
+        if (data) {
+          const currentVerdict = (data.verdict || data.status || "PENDING").toUpperCase().trim();
+
+          setSubmissionResult({
+            status: currentVerdict, 
+            time: data.timeUsage !== undefined && data.timeUsage !== null ? `${data.timeUsage}ms` : "0ms",
+            length: data.memoryUsage !== undefined && data.memoryUsage !== null ? `${data.memoryUsage} KB` : "0 KB", 
+            lang: data.language || "C++17",
+            submittedAt: data.submittedAt ? new Date(data.submittedAt).toLocaleTimeString() : "Just now"
+          });
+
+          if (
+            currentVerdict !== "PENDING" && 
+            currentVerdict !== "CREATED" && 
+            currentVerdict !== "IN_QUEUE" && 
+            currentVerdict !== "TESTING"
+          ) {
+            if (pollingInterval.current) {
+              clearInterval(pollingInterval.current);
+              pollingInterval.current = null;
+            }
+            
+            if (currentVerdict === "ACCEPTED" || currentVerdict === "AC") {
+              toast.success(`Verdict received: ${currentVerdict}`);
+            } else {
+              toast.error(`Submission finished with status: ${currentVerdict}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error during polling submission:", error);
+      }
+    }, 2000); 
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pollingInterval.current) clearInterval(pollingInterval.current);
+    };
+  }, []);
+
+  const onSubmitCode = async (data: SubmissionFormValues) => {
+    if (submissionMethod === "SESSION" && !accountSession) {
+      toast.error("Please configure your account Session ID first.");
       return;
     }
 
-    const payload = {
-      ...data,
-      user_id: userId, 
-      contest_id: null,
-      online_judge: data.online_judge || (params?.judge as string),
-      problem_code: data.problem_code || (params?.code as string),
-    };
+    const toastId = toast.loading("Processing your submission..."); 
+    try {
+      const userId = session?.user?.numericId ? Number(session.user.numericId) : null;
+      if (!userId) {
+        toast.error("Please log in to submit your solution.", { id: toastId });
+        return;
+      }
 
-    console.log("Payload to Backend:", payload);
+      const payload = {
+        user_id: userId,
+        problem_code: (params?.code || data.problem_code) as string,
+        code: data.code,
+        language: data.language,
+        online_judge: (params?.judge as string || data.online_judge).toUpperCase(),
+        opened: data.opened,
+        submission_method: data.submission_method,
+        contest_id: data.contest_id && Number(data.contest_id) !== 0 ? Number(data.contest_id) : null,
+      };
 
-    const response = await submitCodeSolution(payload); 
-    
-    if (response) {
-      toast.success("Solution submitted successfully!", { id: toastId });
-    }
-  } catch (err: any) {
-    console.error("Submission error:", err);
-    const errorMessage = err.response?.data?.message || "An error occurred during submission";
-    toast.error(errorMessage, { id: toastId });
-  }
-};
-console.log("Is Submitting:", isSubmitting);
-console.log('languages:', languages);
-console.log('isOpened:', isOpened);
-console.log('submissionMethod:', submissionMethod);
-console.log('online_judge:', watch("online_judge"));
-console.log('problem_code:', watch("problem_code"));
-  return (
-    <div className="min-h-screen bg-slate-50/50 p-4 md:p-8 flex justify-center items-start">
-      <Card className="w-full max-w-4xl p-6 md:p-8 rounded-[2rem] border-none shadow-sm bg-white">
+      const response = await submitCodeSolution(payload); 
+      
+      if (response && response.id) {
+        toast.success("Solution pushed successfully! Waiting for verdict...", { id: toastId });
+        setCreatedSubmissionId(response.id);
         
-        {/* Header Section */}
-        <div className="mb-8 flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-2xl text-[#1a4b8f]">
-            <Code2 size={30} />
+        setSubmissionResult({
+          status: (response.verdict || "PENDING").toUpperCase(),
+          time: "0ms",
+          length: `${payload.code.length} B`,
+          lang: payload.language,
+          submittedAt: "Just now"
+        });
+
+        startTrackingStatus(response.id);
+        if (onSuccess) onSuccess(); 
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "An error occurred during submission", { id: toastId });
+    }
+  };
+
+  const handleSaveCookie = async () => {
+    if (!cookieValue.trim()) return;
+    const toastId = toast.loading("Saving cookie session...");
+    try {
+      const payload = { 
+        online_judge: ojName.toUpperCase(), 
+        session_data: cookieValue 
+      };
+
+      if (isUpdatingSession) {
+        await updateUserSession(payload);
+      } else {
+        await addUserSession(payload);
+      }
+      
+      toast.success("Cookie updated successfully", { id: toastId });
+      setShowVerifyBlock(false);
+      setCookieValue("");
+      setIsUpdatingSession(false); 
+      fetchSessionStatus();
+    } catch (err) {
+      console.error("Verification failed context:", err);
+      toast.error("Verification failed.", { id: toastId });
+    }
+  };
+
+  const handleUpdateClick = () => {
+    setIsUpdatingSession(true);
+    setShowVerifyBlock(true);
+  };
+
+  const handleRemoveSession = async () => {
+    if (!ojName) return;
+    const toastId = toast.loading("Removing session account...");
+    try {
+      await deleteUserSession(ojName.toUpperCase());
+      setAccountSession(null);
+      setShowVerifyBlock(false);
+      toast.success("Account disconnected successfully", { id: toastId });
+    } catch (err) {
+      console.error("Error removing session:", err);
+      toast.error("Failed to disconnect account", { id: toastId });
+    }
+  };
+
+  return (
+    <div className="w-full text-left bg-white">
+      
+      {/* 1️⃣ شريط عرض النتيجة (بعد الـ Submit الناجح) */}
+      {createdSubmissionId && submissionResult ? (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="flex justify-between items-center border-b pb-2">
+            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Submission Details #{createdSubmissionId}</h3>
+            <button 
+              type="button" 
+              onClick={() => { setCreatedSubmissionId(null); setSubmissionResult(null); }} 
+              className="text-xs text-blue-600 hover:underline font-bold"
+            >
+              &larr; Submit Another Code
+            </button>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-[#0A1D37]">Submit Solution</h1>
-            <p className="text-slate-400 text-sm">Configure your submission and paste your code</p>
+
+          <div className="border border-gray-100 rounded-xl overflow-hidden text-[11px] shadow-xs">
+            <div className="grid grid-cols-5 bg-gray-50/70 p-2.5 font-bold text-gray-500 border-b text-center tracking-wide uppercase text-[10px]">
+              <div>Status</div><div>Time</div><div>Memory</div><div>Lang</div><div>Submitted</div>
+            </div>
+            <div className="grid grid-cols-5 p-2.5 text-center items-center font-semibold text-gray-700">
+              <div className={`py-1 px-2 rounded-lg mx-1 font-bold flex items-center justify-center gap-1 border ${getBannerStyles(submissionResult.status).bg} ${getBannerStyles(submissionResult.status).text}`}>
+                {getBannerStyles(submissionResult.status).icon}
+                {getBannerStyles(submissionResult.status).label}
+              </div>
+              <div className="font-mono text-xs">{submissionResult.time}</div>
+              <div className="font-mono text-xs">{submissionResult.length}</div>
+              <div className="font-mono text-xs text-gray-600">{submissionResult.lang}</div>
+              <div className="text-gray-400 text-[10px] font-medium">{submissionResult.submittedAt}</div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Source Code</Label>
+            <pre className="p-4 bg-gray-900 text-gray-100 rounded-xl font-mono text-xs overflow-x-auto max-h-[320px] shadow-inner leading-relaxed">
+              <code>{currentCode}</code>
+            </pre>
           </div>
         </div>
+      ) : 
 
-        <form onSubmit={handleSubmit(onSubmitCode)} className="space-y-8">
+      /* 2️⃣ واجهة الـ Verify My Account (إدخل الكوكي) */
+      showVerifyBlock ? (
+        <div className="space-y-5 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="text-xs font-bold text-gray-700 uppercase tracking-wider border-b pb-2">Verify My Account</div>
+          <div className="bg-blue-50/60 border border-blue-100 p-3.5 rounded-xl text-xs text-blue-800 flex items-start gap-2 leading-relaxed">
+            <ShieldAlert size={16} className="text-blue-600 shrink-0 mt-0.5" />
+            <span>Please login unto <strong className="uppercase font-extrabold">{ojName}</strong> with your own account, and fill corresponding &apos;value&apos;s below.</span>
+          </div>
           
-          {/* Top Row: Problem Info & Visibility */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2">
-              <Label className="text-[#0A1D37] font-semibold flex items-center gap-2 text-sm">
-                <Globe size={14} className="text-blue-500" /> Problem Info
+          <div className="border border-gray-100 rounded-xl overflow-hidden text-xs shadow-xs">
+            <div className="grid grid-cols-4 bg-gray-50/80 p-2.5 font-bold text-gray-500 border-b uppercase text-[10px] tracking-wider">
+              <div>Type</div><div>Domain</div><div>Name</div><div>Value</div>
+            </div>
+            <div className="grid grid-cols-4 p-3 items-center text-gray-700 font-semibold">
+              <div className="text-gray-400 font-bold text-[10px]">COOKIE</div>
+              <div className="text-xs">{ojName.toLowerCase()}.fi</div>
+              <div className="text-red-500 font-mono text-xs font-bold">PHPSESSID</div>
+              <div>
+                <input 
+                  type="text" 
+                  value={cookieValue} 
+                  onChange={(e) => setCookieValue(e.target.value)} 
+                  placeholder="Paste Cookie Value" 
+                  className="w-full h-9 px-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 bg-gray-50/30 focus:bg-white font-mono text-xs transition-all" 
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+            <button type="button" onClick={() => setShowVerifyBlock(false)} className="px-5 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50">Cancel</button>
+            <button type="button" onClick={handleSaveCookie} className="px-6 py-2 rounded-xl bg-[#314b87] hover:bg-[#3b5aa2] text-white text-xs font-bold shadow-xs">Confirm</button>
+          </div>
+        </div>
+      ) : (
+
+        /* 3️⃣ واجهة الفورم الأساسية */
+        <form onSubmit={handleSubmit(onSubmitCode)} className="space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-gray-700 font-bold flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                <Globe size={13} className="text-blue-500" /> Problem Info
               </Label>
-              <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-[#0A1D37] font-medium text-sm">
-                {`${params?.judge?.toString().toUpperCase() || "OJ"} - ${params?.code || "CODE"}`}
+              <div className="h-10 flex items-center px-3 bg-gray-50 border border-gray-200/60 rounded-xl text-gray-800 font-semibold text-xs">
+                {`${ojName.toUpperCase() || "OJ"} - ${params?.code || "CODE"}`}
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Label className="text-[#0A1D37] font-semibold flex items-center gap-2 text-sm">
-                {isOpened ? <Eye size={14} className="text-green-500"/> : <EyeOff size={14} className="text-slate-400"/>} 
-                Visibility Settings
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-gray-700 font-bold flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                {isOpened ? <Eye size={13} className="text-green-500"/> : <EyeOff size={13} className="text-gray-400"/>} 
+                Visibility
               </Label>
               <button
                 type="button"
                 onClick={() => setValue("opened", !isOpened)}
-                className={`flex items-center justify-between h-[46px] px-4 rounded-xl border transition-all ${
-                  isOpened ? "bg-green-50 border-green-100 text-green-700" : "bg-slate-50 border-slate-200 text-slate-600"
+                className={`flex items-center justify-between h-10 px-3.5 rounded-xl border transition-all ${
+                  isOpened ? "bg-green-50/60 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-600"
                 }`}
               >
-                <span className="text-xs font-bold uppercase tracking-wider">{isOpened ? "Public" : "Private"}</span>
-                <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isOpened ? "bg-green-500" : "bg-slate-300"}`}>
-                  <div className={`bg-white w-3 h-3 rounded-full transition-transform ${isOpened ? "translate-x-4" : "translate-x-0"}`} />
+                <span className="text-[11px] font-bold uppercase tracking-wider">{isOpened ? "Public" : "Private"}</span>
+                <div className={`w-7 h-4 rounded-full p-0.5 transition-colors ${isOpened ? "bg-green-500" : "bg-gray-300"}`}>
+                  <div className={`bg-white w-3 h-3 rounded-full transition-transform ${isOpened ? "translate-x-3" : "translate-x-0"}`} />
                 </div>
               </button>
             </div>
           </div>
 
-          {/* Second Row: Languages & Submit By (Next to each other) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Programming Language */}
-            <div className="flex flex-col gap-2">
-              <Label className="text-[#0A1D37] font-semibold flex items-center gap-2 text-sm">
-                <Terminal size={14} className="text-purple-500" /> Language
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-gray-700 font-bold flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                <Terminal size={13} className="text-purple-500" /> Language
               </Label>
               <div className="relative">
                 <select 
                   {...register("language")}
-                  className="w-full appearance-none h-[46px] rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                  className="w-full appearance-none h-10 rounded-xl border border-gray-200 bg-gray-50/30 px-3 text-xs font-semibold text-gray-800 outline-none focus:border-blue-500 focus:bg-white transition-all cursor-pointer"
                 >
-                  {languages.length === 0 ? (
-                    <option value="">Loading...</option>
-                  ) : (
-                    languages.map((lang) => <option key={lang.id} value={lang.id}>{lang.display_name}</option>)
-                  )}
+                  {languages.length === 0 ? <option value="">Loading...</option> : languages.map((lang) => <option key={lang.id} value={lang.id}>{lang.display_name}</option>)}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                 </div>
               </div>
             </div>
 
-            {/* Submit By */}
-            <div className="flex flex-col gap-2">
-              <Label className="text-[#0A1D37] font-semibold flex items-center gap-2 text-sm">
-                <User size={14} className="text-orange-500" /> Submit By
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-gray-700 font-bold flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                <User size={13} className="text-orange-500" /> Submit Via
               </Label>
-              <div className="flex bg-slate-100 p-1 rounded-xl h-[46px]">
+              <div className="flex bg-gray-100 p-0.5 rounded-xl h-10">
                 <button
                   type="button"
                   onClick={() => setValue("submission_method", "SESSION")}
-                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${submissionMethod === "SESSION" ? "bg-white shadow-sm text-[#0A1D37]" : "text-slate-500 hover:text-slate-700"}`}
+                  className={`flex-1 rounded-lg text-[10px] font-black tracking-wider transition-all ${submissionMethod === "SESSION" ? "bg-white shadow-sm text-gray-900" : "text-gray-400 hover:text-gray-600"}`}
                 >
                   MY ACCOUNT
                 </button>
                 <button
                   type="button"
                   onClick={() => setValue("submission_method", "BOT")}
-                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${submissionMethod === "BOT" ? "bg-white shadow-sm text-[#0A1D37]" : "text-slate-500 hover:text-slate-700"}`}
+                  className={`flex-1 rounded-lg text-[10px] font-black tracking-wider transition-all ${submissionMethod === "BOT" ? "bg-white shadow-sm text-gray-900" : "text-gray-400 hover:text-gray-600"}`}
                 >
                   ICODER BOT
                 </button>
@@ -201,31 +440,49 @@ console.log('problem_code:', watch("problem_code"));
             </div>
           </div>
 
-          {/* Full Width Code Area */}
-          <div className="flex flex-col gap-2 pt-2">
-            <Label className="text-[#0A1D37] font-bold text-sm">Source Code</Label>
+          {submissionMethod === "SESSION" && (
+            <div className="flex items-center gap-4 text-xs bg-gray-50/50 border border-gray-100 p-3 rounded-xl animate-in fade-in duration-150">
+              <span className="text-gray-500 font-bold text-[10px] uppercase tracking-wider">Account status:</span>
+              {loadingSession ? (
+                <span className="text-gray-400 flex items-center gap-1"><RefreshCw size={12} className="animate-spin" /> Fetching Status...</span>
+              ) : accountSession ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-green-600 font-extrabold flex items-center gap-1">● {accountSession.handle}</span>
+                  <button type="button" onClick={handleUpdateClick} className="text-blue-600 font-bold hover:underline">Update</button>
+                  <button type="button" onClick={handleRemoveSession} className="text-red-500 font-bold hover:underline">Remove</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-400 italic font-semibold">(Not Set)</span>
+                  <button type="button" onClick={() => { setIsUpdatingSession(false); setShowVerifyBlock(true); }} className="text-blue-600 font-bold hover:underline">Link Account</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-gray-700 font-bold text-[11px] uppercase tracking-wider">Source Code</Label>
             <div className="relative">
               <Textarea 
                 {...register("code")}
-                placeholder="// Paste your code here..." 
-                className="min-h-[350px] rounded-[1.5rem] border-slate-200 p-6 font-mono text-[13px] bg-slate-50/20 focus-visible:ring-blue-100 resize-none shadow-inner"
+                placeholder="// Your code from the editor is synced here..." 
+                className="min-h-[220px] max-h-[360px] rounded-xl border-gray-200 p-4 font-mono text-xs bg-gray-50/50 focus:bg-white focus-visible:ring-blue-100 resize-y shadow-inner text-gray-900 leading-relaxed"
               />
-              {errors.code && <p className="text-red-500 text-[11px] mt-1 italic ml-2">{errors.code.message}</p>}
+              {errors.code && <p className="text-red-500 text-[10px] mt-1 italic font-semibold ml-1">⚠️ {errors.code.message}</p>}
             </div>
           </div>
 
-          {/* Action Button */}
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-2">
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-12 py-3 rounded-xl bg-[#0A1D37] text-white text-[13px] font-bold hover:bg-[#153a6f] shadow-lg shadow-blue-900/10 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+              disabled={isSubmitting || (submissionMethod === "SESSION" && !accountSession)}
+              className="w-full sm:w-auto px-8 py-2.5 rounded-xl bg-[#314b87] hover:bg-[#3b5aa2] text-white text-xs font-bold shadow-md shadow-blue-600/10 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Submitting..." : <><Send size={14} /> Submit Solution</>}
+              {isSubmitting ? "Submitting Solution..." : <><Send size={13} /> Submit Code</>}
             </button>
           </div>
         </form>
-      </Card>
+      )}
     </div>
   );
 };

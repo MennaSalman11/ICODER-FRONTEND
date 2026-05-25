@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import Whiteboard from "./Whiteboard";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation"; 
+
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
   { ssr: false }
@@ -20,7 +22,6 @@ import { MathJax } from "better-react-mathjax";
 import { getSpecificProblemByCrawler } from "@/src/lib/services/specificProblem.services";
 import { useProblem } from "@/src/components/context/problemContext";
 import { getBatchSubmissionResult, getSubmissionResult, submitBatchCode, submitCode } from "@/src/lib/services/codingEditor.services";
-import { BatchSubmissionSchema, SubmissionSchema } from "@/src/schema/submission.schema";
 import { getActiveTemplateByLanguag } from "@/src/lib/services/templates.services";
 import Submissions from "./Submissions";
 
@@ -31,7 +32,8 @@ const normalizeHtml = (html = "") => {
 };
 
 export default function ProblemUI({ data }: { data: any }) {
-  const {data : session} = useSession()
+  const { data: session } = useSession();
+  const router = useRouter(); 
 
   const {
     languages,
@@ -41,16 +43,14 @@ export default function ProblemUI({ data }: { data: any }) {
     setSourceCode
   } = useProblem();
 
-  // Hydration Error
   const [isMounted, setIsMounted] = useState(false);
   const [customInput, setCustomInput] = useState("");
   const [executionOutput, setExecutionOutput] = useState("");
   const currentLangObj = languages.find((l: any) => l.id === selectedLanguage);
-  console.log("Current language object:", currentLangObj);
   const [currentData, setCurrentData] = useState(data);
   const [loading, setLoading] = useState(false);
   const [testCaseResults, setTestCaseResults] = useState<any[]>([]);
-  console.log('currentData:', currentData);
+  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -118,21 +118,15 @@ export default function ProblemUI({ data }: { data: any }) {
       if (cleanInput) testCases.push({ input: cleanInput, expected_output: cleanOutput });
     }
 
-    console.log("Extracted Test Cases:", testCases);
     return testCases;
   };
 
   const handleRunSamples = async () => {
-    if(!sourceCode.trim() || sourceCode.trim()===" " || sourceCode.includes("/welcome to")){
+    if (!sourceCode.trim() || sourceCode.trim() === " " || sourceCode.toLowerCase().includes("welcome to")) {
       toast.error("Please write your code in the editor before running samples.");
       return;
     }
-    const isDefaultCode = sourceCode.includes("// Welcome to");
-  
-  if (isDefaultCode) {
-    toast.info("Please write your own code instead of using the default template. 💻");
-    return;
-  }
+    
     setLoading(true);
     setExecutionOutput("Processing... ⏳");
     setTestCaseResults([]);
@@ -148,7 +142,6 @@ export default function ProblemUI({ data }: { data: any }) {
         const res = await submitCode(payload);
         if (!res.token) {
           toast.error("Failed to execute code: No token received.");
-          // setExecutionOutput(res.stdout || "Error: No token received");
           setLoading(false);
           return;
         }
@@ -164,9 +157,7 @@ export default function ProblemUI({ data }: { data: any }) {
             await new Promise(r => setTimeout(r, 1500));
           }
         }
-      }
-
-      else {
+      } else {
         const tests = extractTestCases();
         if (tests.length === 0) {
           toast.error("No sample cases found in problem description.");
@@ -179,7 +170,6 @@ export default function ProblemUI({ data }: { data: any }) {
           language_id: Number(selectedLanguage),
           test_inputs: tests,
         };
-        console.log("Payload being sent:", batchPayload);
         const tokensRes = await submitBatchCode(batchPayload);
 
         const tokens = Array.isArray(tokensRes)
@@ -214,8 +204,7 @@ export default function ProblemUI({ data }: { data: any }) {
             } else {
               setExecutionOutput("Results processed, but no matching status found.");
             }
-          }
-          else {
+          } else {
             await new Promise(r => setTimeout(r, 1500));
           }
         }
@@ -228,54 +217,61 @@ export default function ProblemUI({ data }: { data: any }) {
     }
   };
 
-useEffect(()=>{
-  const fetchTemplate = async ()=>{
-    if(!selectedLanguage || !isMounted) return ;
-    const token = (session as any)?.accessToken;
-    if(token){
-  try {
-      const activeTemplate = await getActiveTemplateByLanguag(Number(selectedLanguage) , token)
-      if(activeTemplate && activeTemplate.code){
-        setSourceCode(activeTemplate.code);
-        return;
+  // ✨ التعديل وإضافة الحماية هنا لمنع الـ 500 Error عند تحميل الـ Template الافتراضي
+  useEffect(() => {
+    const fetchTemplate = async () => {
+      const langId = Number(selectedLanguage);
+      // حماية: إذا لم تكن لغة صالحة أو قيمتها عبارة عن ID المسألة (مثل 104)، لا نرسل طلب للباكيند
+      if (!selectedLanguage || isNaN(langId) || langId > 50 || !isMounted) return;
+
+      const token = (session as any)?.accessToken;
+      if (token) {
+        try {
+          const activeTemplate = await getActiveTemplateByLanguag(langId, token);
+          if (activeTemplate && activeTemplate.code) {
+            setSourceCode(activeTemplate.code);
+            return;
+          }
+        } catch (error) {
+          console.log("Error loading active template:", error);
+        }
       }
-    } catch (error) {
-      console.log(error)
-    }
-    }
+      
+      // Fallback الافتراضي في حال عدم وجود تمبلت مخزن في السيرفر للغة الحالية
       if (currentLangObj) {
         setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
       }
-  };
+    };
 
-fetchTemplate();
-},[selectedLanguage, session, isMounted])
+    fetchTemplate();
+  }, [selectedLanguage, session, isMounted, currentLangObj, setSourceCode]);
+
   return (
-    <div className="flex flex-col h-screen w-full bg-[#f8f9fa] overflow-hidden text-black mt-14">
+    <div className="flex flex-col h-[calc(100vh-3.5rem)] w-full bg-[#f8f9fa] overflow-hidden text-black pt-2 relative">
 
-      {/* --- Header --- */}
-<header className="h-14 bg-white border-b flex items-center justify-between px-4 shrink-0 shadow-sm relative z-[999]">        <div className="flex items-center gap-4">
-          <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+      <header className="h-14 bg-white border-b flex items-center justify-between px-4 shrink-0 shadow-sm relative z-[999]">
+        <div className="flex items-center gap-4 min-w-0">
+          <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
             <ChevronLeft className="size-5 text-gray-500" />
           </button>
 
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-gray-800 text-sm tracking-tight">
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2 truncate">
+              <span className="font-bold text-gray-800 text-sm tracking-tight truncate">
                 {currentData?.problem_code}. {currentData?.problem_title}
               </span>
-              <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100 uppercase">
+              <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100 uppercase shrink-0">
                 {currentData?.online_judge}
               </span>
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-gray-400 mt-0.5">
+            <div className="flex items-center gap-3 text-[10px] text-gray-400 mt-0.5 shrink-0">
               <span className="flex items-center gap-1"><Clock className="size-3" /> 1.00 S</span>
               <span className="flex items-center gap-1"><Database className="size-3" /> 512 MB</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 ml-4 shrink-0 min-w-max">
           <select
             className="bg-gray-100 text-[11px] border-none rounded px-2 py-1.5 font-semibold focus:ring-0 cursor-pointer"
             value={selectedLanguage}
@@ -287,24 +283,30 @@ fetchTemplate();
               </option>
             ))}
           </select>
+          
+          {/* Run Samples */}
           <button
             onClick={handleRunSamples}
-            disabled={loading || !sourceCode.trim() || sourceCode.trim()===" " || sourceCode.includes("//welcome to")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold transition-all border 
-    ${(loading || !sourceCode.trim() || sourceCode.trim()===" " || sourceCode.includes("/welcome to")) ?
-       'bg-gray-50 cursor-not-allowed text-gray-300 border-gray-100' :
-       'text-gray-600 hover:bg-gray-100 border-gray-200 active:scale-95'}`}
+            disabled={loading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold transition-all border shrink-0
+              ${loading ? 'bg-gray-50 cursor-not-allowed text-gray-300 border-gray-100' : 'text-gray-600 hover:bg-gray-100 border-gray-200 active:scale-95'}`}
           >
             <Play className={`size-3.5 ${loading ? 'text-green-400' : 'fill-green-600'}`} />
             {loading ? "Running..." : "Run Samples"}
           </button>
-       
+
+          <button
+            onClick={() => setIsSubmitOpen(true)} 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold transition-all border text-white bg-[#314b87] hover:bg-[#3b5aa2] active:scale-95 shadow-sm shrink-0"
+          >
+            <Send className="size-3.5 fill-white" />
+            Submit
+          </button>
         </div>
       </header>
 
       {/* --- Main Content --- */}
       <main className="flex-1 flex overflow-hidden">
-
         {/* Left Side: Tabs */}
         <div className="w-1/2 flex flex-col bg-white border-r">
           <Tabs defaultValue="description" className="flex flex-col h-full">
@@ -323,7 +325,6 @@ fetchTemplate();
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-
               <TabsContent value="description" className="m-0 animate-in fade-in duration-500">
                 <div className="flex justify-between items-start mb-6">
                   <h1 className="text-3xl font-black text-gray-900 tracking-tight">{currentData?.problem_title}</h1>
@@ -345,7 +346,6 @@ fetchTemplate();
                   ))}
                 </div>
 
-                {/* ✅ حماية الـ MathJax بـ isMounted */}
                 <div className="space-y-10">
                   {isMounted && currentData?.sections?.sort((a: any, b: any) => a.order_index - b.order_index).map((section: any) => {
                     const combinedContent = (section.contents || section.content_scrape_dtos || [])
@@ -372,22 +372,20 @@ fetchTemplate();
                 </div>
               </TabsContent>
               <TabsContent value="submissions" className="tab-style">
-
-                <Submissions />
-
+                <div className="flex items-center gap-2 mb-4"> 
+                  <MessageSquare className="size-4 text-gray-500" />
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter my-2">Submission History</span>
+                </div>
               </TabsContent>
               <TabsContent value="whiteboard" className="tab-style">
-
                 <Whiteboard />
-              </TabsContent>
-              {/* ... باقي التابات كما هي ... */}
+              </              TabsContent>
             </div>
           </Tabs>
         </div>
 
         {/* Right Side: Editor + IO Sections */}
         <div className="w-1/2 flex flex-col bg-[#1e1e1e] border-l border-white/5 h-full">
-
           <div className="h-10 bg-[#252526] flex items-center justify-between px-4 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-orange-500 animate-pulse" />
@@ -417,7 +415,6 @@ fetchTemplate();
 
           <div className="h-56 bg-[#1e1e1e] flex flex-col shrink-0">
             <div className="flex h-full border-t border-white/10">
-
               {/* Custom Input */}
               <div className="w-1/2 flex flex-col border-r border-white/10">
                 <div className="px-4 py-2 bg-gray-100 flex items-center gap-2 ">
@@ -440,17 +437,13 @@ fetchTemplate();
                 </div>
 
                 <div className="flex-1 p-4 font-mono text-[12px] text-gray-900 overflow-y-auto custom-scrollbar bg-gray-200">
-
                   {testCaseResults.length > 0 && customInput.trim() === "" && (
                     <div className="mb-4 space-y-2">
                       <p className="text-[10px] font-black text-gray-500 uppercase mb-2">Sample Cases Status:</p>
                       {testCaseResults.map((res, index) => (
                         <div key={index} className="flex justify-between items-center p-2 bg-white rounded border border-gray-300 shadow-sm">
                           <span className="text-[10px] font-bold text-gray-400">SAMPLE {index + 1}</span>
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded ${Number(res.status.id) === 3
-                              ? 'bg-green-100 text-green-600'
-                              : 'bg-red-100 text-red-600'
-                            }`}>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded ${Number(res.status.id) === 3 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                             {res.status.description}
                           </span>
                         </div>
@@ -464,11 +457,34 @@ fetchTemplate();
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
       </main>
+
+      {/* ---- الـ Pop-up Window (Modal) ---- */}
+      {isSubmitOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-[600px] max-w-[90%] max-h-[85vh] flex flex-col overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
+              <div className="flex items-center gap-2">
+                <Send className="size-4 text-blue-600" />
+                <h3 className="text-sm font-bold text-gray-800">New Submission</h3>
+              </div>
+              <button 
+                onClick={() => setIsSubmitOpen(false)} 
+                className="text-gray-400 hover:text-gray-600 text-lg font-bold p-1 hover:bg-gray-200 rounded transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 p-6 overflow-y-auto custom-scrollbar text-black">
+              <Submissions /> 
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         .tab-style {

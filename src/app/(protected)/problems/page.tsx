@@ -106,9 +106,8 @@ const onFilterClick = async () => {
   const isNumbersOnly = /^[0-9]+$/.test(filters.searchTerm);
 
   if (filters.searchTerm && !isNumbersOnly) {
-    // إظهار توست بالإنجليزية لو دخل حروف
     toast.error("Please enter numbers only for the problem code.");
-    return; // توقف عن التنفيذ
+    return; 
   }
 
   if (filters.online_judge && filters.online_judge !== 'All Judges' && filters.searchTerm) {

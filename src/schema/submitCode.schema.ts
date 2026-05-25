@@ -1,5 +1,4 @@
 import * as z from "zod";
-
 export const submissionSchema = z.object({
   user_id: z.coerce.number().optional().nullable(),
   problem_code: z.string().min(1, "Problem code is required"),
@@ -8,7 +7,6 @@ export const submissionSchema = z.object({
   language: z.string().min(1, "Please select a language"),
   opened: z.boolean().default(true),
   submission_method: z.enum(["BOT", "SESSION"]).default("BOT"),
-  contest_id: z.coerce.number().nullable().optional().default(null),
+  contest_id: z.number().nullable().optional().default(null),
 });
-
 export type SubmissionFormValues = z.infer<typeof submissionSchema>;
