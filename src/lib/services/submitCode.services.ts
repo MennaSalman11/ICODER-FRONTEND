@@ -2,6 +2,7 @@
 
 import { SubmissionFormValues } from "@/src/schema/submitCode.schema";
 import { getUserToken } from "../server-utils";
+import { SubmitCodeResponse } from "@/src/types/submitCode.interface";
 
 // 1. جلب اللغات المدعومة بناءً على الـ Online Judge
 export const getLanguages = async (oj: string) => {
@@ -75,7 +76,7 @@ export const getUserSessionByJudge = async (judgeType: string) => {
   }
 };
 
-// 5. إضافة الـ Session ID لأول مرة (POST) متوافق مع الـ Swagger
+
 export const addUserSession = async (payload: { online_judge: string; session_data: string }) => {
   const { token } = await getUserToken();
   const res = await fetch(`http://localhost:9090/api/v1/submissions/session`, {
@@ -90,7 +91,6 @@ export const addUserSession = async (payload: { online_judge: string; session_da
   return await res.json();
 };
 
-// 6. تحديث الـ Session ID الحالي (POST Update) متوافق مع الـ Swagger
 export const updateUserSession = async (payload: { online_judge: string; session_data: string }) => {
   const { token } = await getUserToken();
   const res = await fetch(`http://localhost:9090/api/v1/submissions/session/update`, {
@@ -106,16 +106,19 @@ export const updateUserSession = async (payload: { online_judge: string; session
 };
 
 // 7. حذف الـ Session الخاصة باليوزر بناءً على اسم الـ Judge
-export const deleteUserSession = async (judgeType: string) => {
+export const deleteUserSession = async (sessionId: number) => {
   const { token } = await getUserToken();
-  const res = await fetch(`http://localhost:9090/api/v1/submissions/session/${judgeType.toUpperCase()}`, {
+  const res = await fetch(`http://localhost:9090/api/v1/submissions/session/${sessionId}`, {
     method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${token}` }
+    headers: { 
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json' 
+    }
   });
+  
   if (!res.ok) throw new Error("Failed to delete session");
   return true;
 };
-
 // 8. تتبع حالة الـ Submission الحالي (Polling)
 export const getSubmissionById = async (id: number) => {
   try {
@@ -129,3 +132,42 @@ export const getSubmissionById = async (id: number) => {
     return null;
   }
 };
+
+// get submissions with filters && no filters (for all submissions)
+export const getSubmissions = async (
+  filters: {
+    page: number;
+    size: number;
+    problem_code?: string;
+    online_judge?: string;
+    handle?: string;
+    language?: string;
+  }
+): Promise<SubmitCodeResponse> => {
+      const { token } = await getUserToken();
+
+  const url = new URL('http://localhost:9090/api/v1/submissions');
+  
+  // بناء كائن الفلاتر المجمع للـ API
+  url.searchParams.append('page', filters.page.toString());
+  url.searchParams.append('size', filters.size.toString());
+  
+  if (filters.problem_code) url.searchParams.append('problem_code', filters.problem_code);
+  if (filters.online_judge) url.searchParams.append('online_judge', filters.online_judge);
+  if (filters.handle) url.searchParams.append('handle', filters.handle);
+  if (filters.language) url.searchParams.append('language', filters.language);
+
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json',
+       'Authorization': `Bearer ${token}` }, // أضيفي الـ Auth Token هنا
+  });
+  if (!res.ok) {
+    const errorText = await res.text(); // لنرى تفاصيل الخطأ من السيرفر
+    console.error("Backend Error:", errorText);
+    throw new Error(`Error: ${res.statusText}`);
+  }
+  
+  return res.json();
+};
+

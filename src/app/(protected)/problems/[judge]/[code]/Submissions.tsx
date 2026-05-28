@@ -4,6 +4,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { subscribeToSubmissionStream } from "@/src/lib/services/subscribeStream.client";
 import {
   Globe,
   User,
@@ -46,8 +47,10 @@ interface SubmitProblemProps {
 
 const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
   const { data: session } = useSession();
+  const token = session?.token || session?.user?.accessToken;
   const params = useParams();
-
+console.log("SESSION:", session);
+console.log("TOKEN:", token);
 
   const ojName = (params?.judge as string) || "";
 
@@ -104,9 +107,7 @@ const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
     submittedAt?: string;
   } | null>(null);
 
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
-
-  // Sync Monaco editor code + language
+const streamStarted = useRef(false);  // Sync Monaco editor code + language
   useEffect(() => {
     if (sourceCode) {
       setValue("code", sourceCode, { shouldValidate: true });
@@ -263,85 +264,68 @@ const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
   };
 
   // Polling submission status
-  const startTrackingStatus = (id: number) => {
-    if (pollingInterval.current) {
-      clearInterval(pollingInterval.current);
-    }
+const startTrackingStatus = async (submissionId: number) => {
+  if (!token || streamStarted.current) return;
 
-    pollingInterval.current = setInterval(async () => {
-      try {
-        const data = await getSubmissionById(id);
-        if (data) {
-          const currentVerdict = (
-            data.verdict ||
-            data.status ||
-            "PENDING"
-          )
-            .toUpperCase()
-            .trim();
+  streamStarted.current = true;
 
-          setSubmissionResult({
-            status: currentVerdict,
-            time:
-              data.timeUsage !== undefined &&
-              data.timeUsage !== null
-                ? `${data.timeUsage}ms`
-                : "0ms",
+  await subscribeToSubmissionStream(
+    token,
+    (data) => {
+      console.log("SSE DATA:", data);
 
-            length:
-              data.memoryUsage !== undefined &&
-              data.memoryUsage !== null
-                ? `${data.memoryUsage} KB`
-                : "0 KB",
+      if (data.id !== submissionId) return;
 
-            lang: data.language || "C++17",
+      const currentVerdict = (
+        data.verdict ||
+        data.status ||
+        "PENDING"
+      )
+        .toUpperCase()
+        .trim();
 
-            submittedAt: data.submittedAt
-              ? new Date(data.submittedAt).toLocaleTimeString()
-              : "Just now",
-          });
+      setSubmissionResult({
+        status: currentVerdict,
 
-          if (
-            currentVerdict !== "PENDING" &&
-            currentVerdict !== "CREATED" &&
-            currentVerdict !== "IN_QUEUE" &&
-            currentVerdict !== "TESTING"
-          ) {
-            if (pollingInterval.current) {
-              clearInterval(pollingInterval.current);
-              pollingInterval.current = null;
-            }
+        time:
+          data.timeUsage !== undefined
+            ? `${data.timeUsage}ms`
+            : "0ms",
 
+        length:
+          data.memoryUsage !== undefined
+            ? `${data.memoryUsage} KB`
+            : "0 KB",
 
-            if (
-              currentVerdict === "ACCEPTED" ||
-              currentVerdict === "AC"
-            ) {
-              toast.success(
-                `Verdict received: ${currentVerdict}`
-              );
-            } else {
-              toast.error(
-                `Submission finished with status: ${currentVerdict}`
-              );
-            }
-          }
-        }
-      } catch (error) {
+        lang: data.language || "C++17",
 
-        console.error("Polling error:", error);
+        submittedAt: data.submittedAt
+          ? new Date(data.submittedAt).toLocaleTimeString()
+          : "Just now",
+      });
+
+      if (
+        currentVerdict !== "PENDING" &&
+        currentVerdict !== "CREATED" &&
+        currentVerdict !== "IN_QUEUE" &&
+        currentVerdict !== "TESTING"
+      ) {
+        streamStarted.current = false;
       }
-    }, 2000);
-  };
+    },
+    (err) => {
+      console.error(err);
+      streamStarted.current = false;
+    }
+  );
+};
 
   // Cleanup polling
-  useEffect(() => {
-    return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
-      }
-    };
-  }, []);
+useEffect(() => {
+  return () => {
+    streamStarted.current = false;
+  };
+}, []);
 
   // Submit code
   const onSubmitCode = async (
@@ -489,34 +473,25 @@ const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
 
 
   // Remove account
-  const handleRemoveSession = async () => {
-    if (!ojName) return;
+ const handleRemoveSession = async () => {
+  // تأكد أن لدينا session و id قبل المحاولة
+  if (!accountSession?.id) return;
 
-    const toastId = toast.loading(
-      "Removing session account..."
-    );
+  const toastId = toast.loading("Removing session account...");
 
-    try {
-      await deleteUserSession(
-        ojName.toUpperCase()
-      );
+  try {
+    // نمرر الـ id هنا بدلاً من ojName
+    await deleteUserSession(accountSession.id);
 
-      setAccountSession(null);
-      setShowVerifyBlock(false);
+    setAccountSession(null);
+    setShowVerifyBlock(false);
 
-      toast.success(
-        "Account disconnected successfully",
-        { id: toastId }
-      );
-    } catch (err) {
-      console.error("Error removing session:", err);
-
-      toast.error(
-        "Failed to disconnect account",
-        { id: toastId }
-      );
-    }
-  };
+    toast.success("Account disconnected successfully", { id: toastId });
+  } catch (err) {
+    console.error("Error removing session:", err);
+    toast.error("Failed to disconnect account", { id: toastId });
+  }
+};
 
   return (
     <div className="w-full text-left bg-white">
@@ -867,7 +842,7 @@ const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
               ) : accountSession ? (
                 <div className="flex items-center gap-3">
                   <span className="text-green-600 font-extrabold flex items-center gap-1">
-                    ● {accountSession.handle}
+                  {session?.user?.handle || session?.user?.name}
                   </span>
 
                   <button

@@ -24,6 +24,7 @@ import { useProblem } from "@/src/components/context/problemContext";
 import { getBatchSubmissionResult, getSubmissionResult, submitBatchCode, submitCode } from "@/src/lib/services/codingEditor.services";
 import { getActiveTemplateByLanguag } from "@/src/lib/services/templates.services";
 import Submissions from "./Submissions";
+import AllSubmit from "./AllSubmit";
 
 const normalizeHtml = (html = "") => {
   return html
@@ -218,33 +219,39 @@ export default function ProblemUI({ data }: { data: any }) {
   };
 
   // ✨ التعديل وإضافة الحماية هنا لمنع الـ 500 Error عند تحميل الـ Template الافتراضي
-  useEffect(() => {
-    const fetchTemplate = async () => {
-      const langId = Number(selectedLanguage);
-      // حماية: إذا لم تكن لغة صالحة أو قيمتها عبارة عن ID المسألة (مثل 104)، لا نرسل طلب للباكيند
-      if (!selectedLanguage || isNaN(langId) || langId > 50 || !isMounted) return;
+useEffect(() => {
+  // 1. إذا لم تكن المكونات جاهزة، لا تفعل شيئاً
+  if (!isMounted || !selectedLanguage) return;
 
-      const token = (session as any)?.accessToken;
+  const fetchTemplate = async () => {
+    const langId = Number(selectedLanguage);
+    const token = (session as any)?.accessToken;
+
+    try {
+      // 2. نحاول جلب التمبلت دائماً إذا كان لدينا token
       if (token) {
-        try {
-          const activeTemplate = await getActiveTemplateByLanguag(langId, token);
-          if (activeTemplate && activeTemplate.code) {
-            setSourceCode(activeTemplate.code);
-            return;
-          }
-        } catch (error) {
-          console.log("Error loading active template:", error);
+        const activeTemplate = await getActiveTemplateByLanguag(langId, token);
+        if (activeTemplate?.code) {
+          setSourceCode(activeTemplate.code);
+          return;
         }
       }
       
-      // Fallback الافتراضي في حال عدم وجود تمبلت مخزن في السيرفر للغة الحالية
+      // 3. إذا لم يوجد تمبلت أو حدث خطأ، نستخدم الـ Fallback
       if (currentLangObj) {
         setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
       }
-    };
+    } catch (error) {
+      console.error("Error loading template:", error);
+      // في حالة الخطأ، نضع الكود الافتراضي أيضاً لضمان عدم بقاء المحرر فارغاً
+      if (currentLangObj) {
+        setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
+      }
+    }
+  };
 
-    fetchTemplate();
-  }, [selectedLanguage, session, isMounted, currentLangObj, setSourceCode]);
+  fetchTemplate();
+}, [selectedLanguage, session, isMounted, currentLangObj, setSourceCode]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] w-full bg-[#f8f9fa] overflow-hidden text-black pt-2 relative">
@@ -371,15 +378,14 @@ export default function ProblemUI({ data }: { data: any }) {
                   })}
                 </div>
               </TabsContent>
+
               <TabsContent value="submissions" className="tab-style">
-                <div className="flex items-center gap-2 mb-4"> 
-                  <MessageSquare className="size-4 text-gray-500" />
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter my-2">Submission History</span>
-                </div>
+               <AllSubmit/>
               </TabsContent>
+
               <TabsContent value="whiteboard" className="tab-style">
                 <Whiteboard />
-              </              TabsContent>
+              </TabsContent>
             </div>
           </Tabs>
         </div>
