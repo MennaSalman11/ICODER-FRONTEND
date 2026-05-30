@@ -2,27 +2,51 @@
 
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faXmark, faUserPlus, faCopy, faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faXmark, faUserPlus, faCopy, faCheck, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "sonner";
+import { groupService } from "@/src/lib/services/group-service";
 
 interface InviteMemberModalProps {
     isOpen: boolean;
     onClose: () => void;
     groupCode: string;
+    groupId: number;
 }
 
-const InviteMemberModal = ({ isOpen, onClose, groupCode }: InviteMemberModalProps) => {
+const InviteMemberModal = ({ isOpen, onClose, groupCode, groupId }: InviteMemberModalProps) => {
     const [userHandle, setUserHandle] = useState("");
     const [copied, setCopied] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [lastResponse, setLastResponse] = useState<Record<string, unknown> | null>(null);
 
-    const handleInvite = () => {
+    const handleInvite = async () => {
         if (!userHandle.trim()) {
             toast.error("Please enter a user handle");
             return;
         }
-        console.log("Inviting user:", userHandle);
-        toast.success(`Invitation sent to "${userHandle}"!`);
-        setUserHandle("");
+
+        setIsLoading(true);
+        setLastResponse(null);
+
+        try {
+            const res = await groupService.inviteMember(userHandle.trim(), groupId);
+            console.log("Invite Response:", res);
+
+            // Store the full response so we can display it in the UI
+            setLastResponse(res as Record<string, unknown>);
+
+            toast.success(`Invitation sent to "${userHandle}"!`);
+            setUserHandle("");
+        } catch (error) {
+            console.error("Invite Error:", error);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to send invitation. Please try again."
+            );
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleCopyCode = async () => {
@@ -36,9 +60,19 @@ const InviteMemberModal = ({ isOpen, onClose, groupCode }: InviteMemberModalProp
         }
     };
 
+    const handleCopyResponseValue = async (value: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            toast.success("Copied to clipboard!");
+        } catch {
+            toast.error("Failed to copy");
+        }
+    };
+
     const handleClose = () => {
         setUserHandle("");
         setCopied(false);
+        setLastResponse(null);
         onClose();
     };
 
@@ -88,8 +122,9 @@ const InviteMemberModal = ({ isOpen, onClose, groupCode }: InviteMemberModalProp
                                 value={userHandle}
                                 onChange={(e) => setUserHandle(e.target.value)}
                                 placeholder="Enter username or handle"
-                                onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition placeholder:text-gray-400"
+                                onKeyDown={(e) => e.key === "Enter" && !isLoading && handleInvite()}
+                                disabled={isLoading}
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                             />
                         </div>
 
@@ -97,10 +132,44 @@ const InviteMemberModal = ({ isOpen, onClose, groupCode }: InviteMemberModalProp
                         <button
                             type="button"
                             onClick={handleInvite}
-                            className="w-full py-2.5 text-sm font-semibold text-white bg-[#1b4583] hover:bg-[#163a6e] rounded-lg transition cursor-pointer shadow-sm"
+                            disabled={isLoading}
+                            className="w-full py-2.5 text-sm font-semibold text-white bg-[#1b4583] hover:bg-[#163a6e] rounded-lg transition cursor-pointer shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            Invite User
+                            {isLoading && (
+                                <FontAwesomeIcon icon={faSpinner} className="animate-spin text-sm" />
+                            )}
+                            {isLoading ? "Sending Invitation…" : "Invite User"}
                         </button>
+
+                        {/* Last API Response (debug panel) */}
+                        {lastResponse && (
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2">
+                                <p className="text-xs font-bold text-green-700 uppercase tracking-wide">
+                                    ✅ Invitation Response
+                                </p>
+                                {Object.entries(lastResponse).map(([key, value]) => (
+                                    <div
+                                        key={key}
+                                        className="flex items-start gap-2 bg-white border border-green-100 rounded-lg px-3 py-2"
+                                    >
+                                        <span className="text-xs font-semibold text-gray-500 shrink-0 mt-0.5">
+                                            {key}:
+                                        </span>
+                                        <span className="text-xs text-gray-800 font-mono break-all flex-1">
+                                            {String(value)}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCopyResponseValue(String(value))}
+                                            className="shrink-0 text-gray-400 hover:text-[#1b4583] transition cursor-pointer"
+                                            title={`Copy ${key}`}
+                                        >
+                                            <FontAwesomeIcon icon={faCopy} className="text-xs" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Helper text */}
                         <p className="text-xs text-[#1b4583]/60 text-center">

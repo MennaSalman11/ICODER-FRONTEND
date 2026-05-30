@@ -250,6 +250,7 @@ export default function GroupPage() {
                 isOpen={isInviteModalOpen}
                 onClose={() => setIsInviteModalOpen(false)}
                 groupCode={group.code || "N/A"}
+                groupId={Number(group.id)}
             />
         </div>
     );

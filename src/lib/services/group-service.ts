@@ -103,5 +103,7 @@ export const groupService = {
     getGroupPicture: (groupId: number) =>
         apiClient.get<{ picture_url: string }>(`/groups/${groupId}/group-picture`),
 
-
+    // Respond to a group invitation (ACCEPTED | REJECTED)
+    respondToInvitation: (token: string, response: "ACCEPTED" | "REJECTED"): Promise<{ message: string }> =>
+        apiClient.put<{ message: string }>("/invite/group-response", { token, response }),
 };
