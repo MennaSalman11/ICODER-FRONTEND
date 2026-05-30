@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { getProfile } from "@/src/lib/services/profile.services";
 import { FaUser } from "react-icons/fa";
 import Link from "next/link";
+import ActivityHeatmap from "@/src/components/ActivityHeatmap";
 export default function ProfilePage() {
   const params = useParams();
   const handleFromUrl = params.handle; 
@@ -63,6 +64,13 @@ export default function ProfilePage() {
      </div>
     </div>
   </section>
+<section className=" pt-24 px-30">
+  <ActivityHeatmap
+  solved={1245}
+  attempts={1512}
+  accuracy={82.3}
+/>
+</section>
     </div>
   );
 }

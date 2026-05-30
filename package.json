@@ -21,7 +21,7 @@
     "better-react-mathjax": "^3.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "date-fns": "^4.3.0",
+    "date-fns": "^4.4.0",
     "event-source-polyfill": "^1.0.31",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.554.0",

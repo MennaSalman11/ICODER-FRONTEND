@@ -4,7 +4,6 @@ import { SubmissionFormValues } from "@/src/schema/submitCode.schema";
 import { getUserToken } from "../server-utils";
 import { SubmitCodeResponse } from "@/src/types/submitCode.interface";
 
-// 1. جلب اللغات المدعومة بناءً على الـ Online Judge
 export const getLanguages = async (oj: string) => {
   const { token } = await getUserToken();
   const res = await fetch(`http://localhost:9090/api/v1/submissions/languages/${oj.toLowerCase()}`, {
@@ -14,7 +13,7 @@ export const getLanguages = async (oj: string) => {
   return await res.json(); 
 };
 
-// 2. تعديل خصوصية الـ Submission (عام / خاص)
+
 export const toggleSubmissionOpenness = async (submissionId: number) => {
   try {
     const { token } = await getUserToken();
@@ -37,7 +36,6 @@ export const toggleSubmissionOpenness = async (submissionId: number) => {
   }
 };
 
-// 3. تقديم الحل (Submit Code) وإرساله للباكيند
 export const submitCodeSolution = async (payload: SubmissionFormValues) => {
   try {
     const { token } = await getUserToken();
@@ -49,7 +47,6 @@ export const submitCodeSolution = async (payload: SubmissionFormValues) => {
       },
       body: JSON.stringify(payload),
     });
-
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || "Failed to submit code");
@@ -62,7 +59,6 @@ export const submitCodeSolution = async (payload: SubmissionFormValues) => {
   }
 };
 
-// 4. فحص حالة وجود الـ Session للحساب (GET)
 export const getUserSessionByJudge = async (judgeType: string) => {
   try {
     const { token } = await getUserToken();
@@ -105,7 +101,6 @@ export const updateUserSession = async (payload: { online_judge: string; session
   return await res.json();
 };
 
-// 7. حذف الـ Session الخاصة باليوزر بناءً على اسم الـ Judge
 export const deleteUserSession = async (sessionId: number) => {
   const { token } = await getUserToken();
   const res = await fetch(`http://localhost:9090/api/v1/submissions/session/${sessionId}`, {
@@ -119,7 +114,6 @@ export const deleteUserSession = async (sessionId: number) => {
   if (!res.ok) throw new Error("Failed to delete session");
   return true;
 };
-// 8. تتبع حالة الـ Submission الحالي (Polling)
 export const getSubmissionById = async (id: number) => {
   try {
     const { token } = await getUserToken();
@@ -148,7 +142,6 @@ export const getSubmissions = async (
 
   const url = new URL('http://localhost:9090/api/v1/submissions');
   
-  // بناء كائن الفلاتر المجمع للـ API
   url.searchParams.append('page', filters.page.toString());
   url.searchParams.append('size', filters.size.toString());
   
