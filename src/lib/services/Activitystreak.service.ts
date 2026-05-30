@@ -1,5 +1,6 @@
+import { getUserToken } from '../server-utils';
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
- import { getUserToken } from '../server-utils';
 
 export interface StreakData {
   current_streak: number;
@@ -7,22 +8,44 @@ export interface StreakData {
   last_accepted_at: string;
   today_utc: string;
 }
- 
-export async function getActivityStreak(timezone = "UTC"): Promise<StreakData> {
-        const { token } = await getUserToken();
 
-  const res = await fetch(
-    `${BASE_URL}/api/v1/activity-streak?timezone=${timezone}`,
-    {
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      method: "GET",
-    }
-  );
- 
+export interface ActivityGridDay {
+  date: string;
+  accepted_count: number;
+  attempted_count: number;
+}
+
+/**
+ * دالة مساعدة لتوحيد طلبات الـ API وتقليل التكرار
+ */
+async function fetchWithAuth(endpoint: string): Promise<any> {
+  const { token } = await getUserToken();
+  
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    },
+  });
+
   if (!res.ok) {
-    throw new Error(`Failed to fetch streak: ${res.status}`);
+    throw new Error(`API Error [${res.status}]: Failed to fetch from ${endpoint}`);
   }
- 
+
   return res.json();
 }
- 
+
+/**
+ * جلب الـ Streak الحالي للمستخدم
+ */
+export async function getActivityStreak(timezone = "UTC"): Promise<StreakData> {
+  return fetchWithAuth(`/api/v1/activity-streak?timezone=${timezone}`);
+}
+
+/**
+ * جلب بيانات الـ Grid لسنة معينة
+ */
+export async function getActivityGrid(year: number, timezone = "UTC"): Promise<ActivityGridDay[]> {
+  return fetchWithAuth(`/api/v1/activity-logs/grid?year=${year}&timezone=${timezone}`);
+}

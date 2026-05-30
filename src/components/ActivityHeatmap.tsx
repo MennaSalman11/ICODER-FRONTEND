@@ -1,191 +1,314 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getActivityStreak, type StreakData } from "@/src/lib/services/Activitystreak.service";
+import {
+  getActivityStreak,
+  getActivityGrid,
+  type StreakData,
+  type ActivityGridDay,
+} from "@/src/lib/services/Activitystreak.service";
 
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 
-type CellLevel = 0 | 1 | 2 | 3 | 4;
+// تكبير الحجم والمسافات لتأخذ الخلايا مساحة الكارت بالكامل بشكل مريح
+const CELL = 14; 
+const GAP = 4;
+const LABEL_W = 32;
+const HEADER_H = 20;
 
-interface ActivityDay {
+function getCellColor(accepted: number, attempted: number): string {
+  if (accepted === 0 && attempted === 0) return "#EBEDF0";
+  if (accepted === 0 && attempted > 0) return "#FECACA"; // حاول بس غلط (أحمر فاتح)
+  if (accepted === 1) return "#9BE9A8"; // أخضر فاتح
+  if (accepted === 2) return "#40C463"; // أخضر متوسط
+  return "#216E39"; // أخضر غامق (3 أو أكثر)
+}
+
+interface GridDay {
   date: string;
-  count: number;
-  level: CellLevel;
+  accepted: number;
+  attempted: number;
 }
 
-interface Props {
-  solved?: number;
-  attempts?: number;
-  accuracy?: number;
-}
-
-const CELL_COLORS: Record<CellLevel, string> = {
-  0: "#EBEDF0",
-  1: "#9BE9A8",
-  2: "#40C463",
-  3: "#30A14E",
-  4: "#216E39",
-};
-
-function getLevelFromCount(count: number): CellLevel {
-  if (count === 0) return 0;
-  if (count <= 2) return 1;
-  if (count <= 5) return 2;
-  if (count <= 9) return 3;
-  return 4;
-}
-
-// ─── توليد mock data مؤقتة ────────────────────────────────────────────────
-function generateMockData(): Record<string, number> {
-  const data: Record<string, number> = {};
-  const today = new Date();
-  for (let i = 0; i < 364; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toISOString().split("T")[0];
-    const r = Math.random();
-    if (r < 0.15) data[key] = 0;
-    else if (r < 0.4) data[key] = Math.ceil(Math.random() * 2);
-    else if (r < 0.65) data[key] = Math.ceil(Math.random() * 3) + 2;
-    else if (r < 0.85) data[key] = Math.ceil(Math.random() * 4) + 5;
-    else data[key] = Math.ceil(Math.random() * 5) + 9;
-  }
-  return data;
-}
-// ─────────────────────────────────────────────────────────────────────────────
-
-function buildWeeks(rawData: Record<string, number>): {
-  weeks: ActivityDay[][];
+function buildYearWeeks(
+  year: number,
+  dataMap: Record<string, ActivityGridDay>
+): {
+  weeks: GridDay[][];
   monthLabels: { label: string; weekIndex: number }[];
 } {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - 363);
-  startDate.setDate(startDate.getDate() - startDate.getDay());
-
-  const weeks: ActivityDay[][] = [];
+  const weeks: GridDay[][] = [];
   const monthLabels: { label: string; weekIndex: number }[] = [];
-  let currentMonth = -1;
-  const cursor = new Date(startDate);
 
-  for (let w = 0; w < 53; w++) {
-    const week: ActivityDay[] = [];
+  const jan1 = new Date(year, 0, 1);
+  const startDate = new Date(jan1);
+  startDate.setDate(jan1.getDate() - jan1.getDay());
+
+  const endDate = new Date(year, 11, 31);
+  const cursor = new Date(startDate);
+  let currentMonth = -1;
+  let weekIndex = 0;
+
+  while (true) {
+    const week: GridDay[] = [];
     for (let d = 0; d < 7; d++) {
       const dateStr = cursor.toISOString().split("T")[0];
-      const count = rawData[dateStr] ?? 0;
-      week.push({ date: dateStr, count, level: getLevelFromCount(count) });
+      const entry = dataMap[dateStr];
+      week.push({
+        date: dateStr,
+        accepted: entry?.accepted_count ?? 0,
+        attempted: entry?.attempted_count ?? 0,
+      });
       const month = cursor.getMonth();
-      if (d === 0 && month !== currentMonth) {
+      if (d === 0 && month !== currentMonth && cursor.getFullYear() === year) {
         currentMonth = month;
-        monthLabels.push({ label: MONTHS[month], weekIndex: w });
+        monthLabels.push({ label: MONTHS[month], weekIndex });
       }
       cursor.setDate(cursor.getDate() + 1);
     }
     weeks.push(week);
+    weekIndex++;
+    if (cursor > endDate) break;
   }
 
   return { weeks, monthLabels };
 }
 
-const CELL = 14;   // حجم المربع
-const GAP  = 3;    // المسافة بينهم
-
-export default function ActivityHeatmap({ solved = 0, attempts = 0, accuracy = 0 }: Props) {
-  const [streakData, setStreakData] = useState<StreakData | null>(null);
-  const [activityData, setActivityData] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+function YearGrid({
+  year,
+  dataMap,
+}: {
+  year: number;
+  dataMap: Record<string, ActivityGridDay>;
+}) {
   const [tooltip, setTooltip] = useState<{
     text: string;
     x: number;
     y: number;
   } | null>(null);
 
-  useEffect(() => {
-    // ─── Mock data مؤقتة — استبدليها بـ API call حقيقي لما الـ endpoint جاهزة ───
-    setActivityData(generateMockData());
-    // ─────────────────────────────────────────────────────────────────────────────
-
-    getActivityStreak("UTC")
-      .then(setStreakData)
-      .catch((err) => console.error("Streak fetch error:", err))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const { weeks, monthLabels } = buildWeeks(activityData);
-  const currentStreak = streakData?.current_streak ?? 0;
-
-  // ارتفاع الـ grid الكلي
-  const gridHeight = 7 * CELL + 6 * GAP; // 7 صفوف + 6 فراغات
-  const LABEL_W = 28;
-  const HEADER_H = 20;
+  const { weeks, monthLabels } = buildYearWeeks(year, dataMap);
+  const gridHeight = 7 * CELL + 6 * GAP;
+  const svgWidth = LABEL_W + weeks.length * (CELL + GAP);
 
   return (
-    <div className="flex gap-3 items-stretch w-full">
+    <div className="relative" style={{ minHeight: gridHeight + HEADER_H + 8 }}>
+      <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-200">
+        <svg
+          width={svgWidth}
+          height={HEADER_H + gridHeight}
+          className="block select-none w-full"
+        >
+          {/* Month labels */}
+          {monthLabels.map((m, idx) => (
+            <text
+              key={`${m.label}-${idx}`}
+              x={LABEL_W + m.weekIndex * (CELL + GAP)}
+              y={12}
+              className="text-[10px] fill-gray-400 font-medium"
+            >
+              {m.label}
+            </text>
+          ))}
 
-      {/* ── Stats Card ── */}
-      <div className="w-[190px] shrink-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col">
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">
-          Problem Stats
-        </p>
+          {/* Day labels */}
+          {DAY_LABELS.map((d, i) =>
+            d ? (
+              <text
+                key={i}
+                x={0}
+                y={HEADER_H + i * (CELL + GAP) + CELL - 2}
+                className="text-[10px] fill-gray-400 font-medium"
+              >
+                {d}
+              </text>
+            ) : null
+          )}
 
-        <div className="mb-1">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs text-gray-500">Solved</span>
-            <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
-              {solved.toLocaleString()}
-            </span>
-          </div>
-          <div className="h-1 w-full bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
-            <div
-              className="h-1 bg-green-500 rounded-full"
-              style={{ width: `${Math.min((solved / (attempts || 1)) * 100, 100).toFixed(0)}%` }}
-            />
-          </div>
+          {/* Cells */}
+          {weeks.map((week, wIdx) =>
+            week.map((day, dIdx) => (
+              <rect
+                key={`${wIdx}-${dIdx}`}
+                x={LABEL_W + wIdx * (CELL + GAP)}
+                y={HEADER_H + dIdx * (CELL + GAP)}
+                width={CELL}
+                height={CELL}
+                rx={2.5}
+                fill={getCellColor(day.accepted, day.attempted)}
+                className="transition-all duration-150 hover:stroke-gray-400 hover:stroke-[1px]"
+                style={{ cursor: "pointer" }}
+                onMouseEnter={(e) => {
+                  const svgEl = (e.currentTarget as SVGRectElement).ownerSVGElement!;
+                  const container = svgEl.parentElement!.parentElement!;
+                  const svgRect = svgEl.getBoundingClientRect();
+                  const containerRect = container.getBoundingClientRect();
+                  setTooltip({
+                    text: `${day.date} • ${day.accepted} Solved / ${day.attempted} Tried`,
+                    x: svgRect.left - containerRect.left + LABEL_W + wIdx * (CELL + GAP) + CELL / 2,
+                    y: svgRect.top - containerRect.top + HEADER_H + dIdx * (CELL + GAP) - 6,
+                  });
+                }}
+                onMouseLeave={() => setTooltip(null)}
+              />
+            ))
+          )}
+        </svg>
+      </div>
+
+      {tooltip && (
+        <div
+          className="absolute z-20 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-[10px] font-medium rounded-md shadow-md pointer-events-none whitespace-nowrap border border-gray-700/50"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          {tooltip.text}
         </div>
+      )}
+    </div>
+  );
+}
 
-        <div className="space-y-3 flex-1">
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-500">Attempts</span>
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-              {attempts.toLocaleString()}
-            </span>
+export default function ActivityHeatmap() {
+  const [streakData, setStreakData] = useState<StreakData | null>(null);
+  const [dataMap, setDataMap] = useState<Record<string, ActivityGridDay>>({});
+  const [loading, setLoading] = useState(true);
+  
+  // تحديد السنة الحالية ديناميكياً لتجنب مشاكل الـ Hydration
+  const [activeYear, setActiveYear] = useState<number>(2026);
+  const [currentYear, setCurrentYear] = useState<number>(2026);
+  const [prevYear, setPrevYear] = useState<number>(2025);
+
+  const [totalSolved, setTotalSolved] = useState(0);
+  const [totalAttempts, setTotalAttempts] = useState(0);
+
+useEffect(() => {
+  const cYear = new Date().getFullYear();
+  const pYear = cYear - 1;
+  setCurrentYear(cYear);
+  setPrevYear(pYear);
+  setActiveYear(cYear);
+
+  setLoading(true);
+  Promise.all([
+    getActivityStreak("UTC"),
+    getActivityGrid(cYear, "UTC"),
+    getActivityGrid(pYear, "UTC"),
+  ])
+    .then(([streak, currGrid, prevGrid]) => {
+      
+      // ─── الـ LOGS لرؤية الداتا الراجعة من الباك ───
+      console.log("=== DATA FROM BACKEND ===");
+      console.log("1. Streak Data:", streak);
+      console.log(`2. Grid Data for Current Year (${cYear}):`, currGrid);
+      console.log(`3. Grid Data for Previous Year (${pYear}):`, prevGrid);
+      console.log("=================================");
+
+      setStreakData(streak);
+      
+      const map: Record<string, ActivityGridDay> = {};
+      let solvedSum = 0;
+      let attemptsSum = 0;
+
+      // دمج وحساب الإحصائيات من الـ API مباشرة لآخر سنتين
+  [...currGrid, ...prevGrid].forEach((d) => {
+  map[d.date] = d;
+  
+  // استخدام Number() هنا يحول '3' إلى 3 و '14' إلى 14 ويجمعهم جمعاً رياضياً صحيحاً
+  solvedSum += Number(d.accepted_count ?? 0);
+  attemptsSum += Number(d.attempted_count ?? 0);
+});
+
+      // لوج إضافي للتأكد من المجموع النهائي بعد الحساب التراكمي
+      console.log("=== CALCULATED STATS ===");
+      console.log("Total Solved Sum:", solvedSum);
+      console.log("Total Attempts Sum:", attemptsSum);
+      console.log("=================================");
+
+      setDataMap(map);
+      setTotalSolved(solvedSum);
+      setTotalAttempts(attemptsSum);
+    })
+    .catch((err) => console.error("Fetch error:", err))
+    .finally(() => setLoading(false));
+}, []);
+
+  const currentStreak = streakData?.current_streak ?? 0;
+  const maxStreak = streakData?.max_streak ?? 0;
+
+  return (
+    <div className="flex flex-col md:flex-row gap-4 items-stretch w-full font-sans">
+      
+      {/* ── Stats Card ── */}
+      <div className="w-full md:w-[210px] shrink-0 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-5 flex flex-col justify-between shadow-xs">
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+            Problem Stats
+          </p>
+
+          <div className="mb-5">
+            <div className="flex justify-between items-end mb-1.5">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Solved</span>
+              <span className="text-base font-extrabold text-gray-900 dark:text-gray-50">
+                {loading ? "—" : Number(totalSolved).toLocaleString()}
+              </span>
+            </div>
+            <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all duration-500"
+                style={{
+                  width: `${Math.min((totalSolved / (totalAttempts || 1)) * 100, 100).toFixed(0)}%`,
+                }}
+              />
+            </div>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-500">Accuracy</span>
-            <span className="text-sm font-semibold text-green-600">
-              {accuracy.toFixed(1)}%
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-500">Streak</span>
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-              {loading ? "—" : `${currentStreak} Days`}
-            </span>
+
+          <div className="space-y-3.5">
+            <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-900/50 pb-2">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Attempts</span>
+              <span className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                {loading ? "—" : Number(totalAttempts).toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-900/50 pb-2">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Current Streak</span>
+              <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                {loading ? "—" : `${currentStreak} Days`}
+              </span>
+            </div>
+            <div className="flex justify-between items-center pb-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Max Streak</span>
+              <span className="text-sm font-bold text-orange-500 dark:text-orange-400">
+                {loading ? "—" : `${maxStreak} Days`}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Heatmap Card ── */}
-      <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 relative flex flex-col">
-
-        {/* Header */}
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+      <div className="flex-1 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-5 flex flex-col gap-4 shadow-xs">
+        
+        {/* Header & Legend */}
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-gray-100 dark:border-gray-900 pb-3">
+          <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
             Problem Solving Activity
           </p>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
             <span>Less</span>
-            {([0, 1, 2, 3, 4] as CellLevel[]).map((l) => (
+            {["#EBEDF0", "#FECACA", "#9BE9A8", "#40C463", "#216E39"].map((color) => (
               <div
-                key={l}
+                key={color}
+                className="border border-black/5 dark:border-white/5"
                 style={{
-                  width: CELL,
-                  height: CELL,
-                  borderRadius: 3,
-                  backgroundColor: CELL_COLORS[l],
+                  width: 11,
+                  height: 11,
+                  borderRadius: 2,
+                  backgroundColor: color,
                   flexShrink: 0,
                 }}
               />
@@ -194,86 +317,41 @@ export default function ActivityHeatmap({ solved = 0, attempts = 0, accuracy = 0
           </div>
         </div>
 
-        {/* SVG Grid */}
-        <div className="flex-1 overflow-x-auto relative" style={{ minHeight: gridHeight + HEADER_H + 8 }}>
-          <svg
-            width={LABEL_W + weeks.length * (CELL + GAP)}
-            height={HEADER_H + gridHeight}
-            style={{ display: "block" }}
-          >
-            {/* Month labels */}
-            {monthLabels.map((m) => (
-              <text
-                key={m.weekIndex}
-                x={LABEL_W + m.weekIndex * (CELL + GAP)}
-                y={12}
-                fontSize={10}
-                fill="#9CA3AF"
-              >
-                {m.label}
-              </text>
-            ))}
+        {loading ? (
+          <div className="flex items-center justify-center h-32 text-xs text-gray-400 animate-pulse">
+            Loading activity stream...
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            
+            <div className="flex gap-4 items-start relative">
+              
+              {/* الـ Grid الأساسي وتوسيع مساحته */}
+              <div className="flex-1 min-w-0 transition-opacity duration-300">
+                <YearGrid year={activeYear} dataMap={dataMap} />
+              </div>
 
-            {/* Day labels */}
-            {DAY_LABELS.map((d, i) => (
-              d ? (
-                <text
-                  key={i}
-                  x={0}
-                  y={HEADER_H + i * (CELL + GAP) + CELL - 2}
-                  fontSize={10}
-                  fill="#9CA3AF"
-                >
-                  {d}
-                </text>
-              ) : null
-            ))}
+              {/* أزرار اختيار السنة جهة اليمين عمودياً لتعويض مكان النص القديم */}
+              <div className="flex flex-col gap-1.5 bg-gray-50 dark:bg-gray-900 p-1 rounded-lg shrink-0 border border-gray-100 dark:border-gray-800/50 mt-5">
+                {[currentYear, prevYear].map((year) => (
+                  <button
+                    key={year}
+                    type="button"
+                    onClick={() => setActiveYear(year)}
+                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all duration-150 ${
+                      activeYear === year
+                        ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs border border-gray-200/30 dark:border-gray-700/30"
+                        : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    }`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
 
-            {/* Cells */}
-            {weeks.map((week, wIdx) =>
-              week.map((day, dIdx) => (
-                <rect
-                  key={`${wIdx}-${dIdx}`}
-                  x={LABEL_W + wIdx * (CELL + GAP)}
-                  y={HEADER_H + dIdx * (CELL + GAP)}
-                  width={CELL}
-                  height={CELL}
-                  rx={3}
-                  fill={CELL_COLORS[day.level]}
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={(e) => {
-                    const svgEl = (e.currentTarget as SVGRectElement).ownerSVGElement!;
-                    const container = svgEl.parentElement!;
-                    const svgRect = svgEl.getBoundingClientRect();
-                    const containerRect = container.getBoundingClientRect();
-                    const cellX = LABEL_W + wIdx * (CELL + GAP) + CELL / 2;
-                    const cellY = HEADER_H + dIdx * (CELL + GAP);
-                    setTooltip({
-                      text: `${day.date} — ${day.count} submission${day.count !== 1 ? "s" : ""}`,
-                      x: svgRect.left - containerRect.left + cellX,
-                      y: svgRect.top - containerRect.top + cellY - 6,
-                    });
-                  }}
-                  onMouseLeave={() => setTooltip(null)}
-                />
-              ))
-            )}
-          </svg>
-
-          {/* Tooltip */}
-          {tooltip && (
-            <div
-              className="absolute z-20 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-md shadow-lg pointer-events-none whitespace-nowrap"
-              style={{
-                left: tooltip.x,
-                top: tooltip.y,
-                transform: "translate(-50%, -100%)",
-              }}
-            >
-              {tooltip.text}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
