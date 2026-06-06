@@ -11,10 +11,12 @@ import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { deleteProfilePicture,  updateProfilePicture } from "@/src/lib/services/changePicture.services";
 import { fileToBase64 } from "@/src/lib/fileToBase";
+import { useSession } from "next-auth/react";
 
 
 export default function GeneralSettingsPage() {
 const [previewImage, setPreviewImage] = useState<string | null>(null);
+const { data: session, status } = useSession();
 
 const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,21 +49,26 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  const objectUrl = URL.createObjectURL(file);
-  setPreviewImage(objectUrl);
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onloadend = async () => {
+    const base64String = reader.result as string;
+    setPreviewImage(base64String);
 
-  try {
-    const res = await updateProfilePicture(file);
-
-    if (res.ok) {
-      toast.success("Photo updated!");
-    } else {
-      toast.error("Failed with FormData too");
+    try {
+      // تمرير الـ base64 و الـ handle من الـ params
+      const res = await updateProfilePicture(base64String);
+      
+      if (res.ok) {
+        toast.success("Photo updated!");
+      } else {
+        toast.error("Failed to update photo");
+      }
+    } catch (error) {
+      console.error(error);
     }
-  } catch (error) {
-    console.error(error);
-  }
-};  
+  };
+};
 
 const handleRemovePhoto = async () => {
   const res = await deleteProfilePicture();
@@ -79,6 +86,8 @@ const handleRemovePhoto = async () => {
     toast.error("Failed to remove photo",);
   }
 };
+
+
 
 const onsubmit = async (data: GeneralSettingsPayload) => {
     console.log(data);

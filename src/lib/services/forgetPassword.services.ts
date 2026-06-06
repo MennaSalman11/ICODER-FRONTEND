@@ -1,6 +1,6 @@
 export async function forgetPassword (email : string){
 try {
-    const res = await fetch(`http://localhost:9090/api/v1/auth/password/forget`,{
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/auth/password/forget`,{
         method:'POST',
         headers:{
             'Content-Type':'application/json'

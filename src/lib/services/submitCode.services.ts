@@ -39,7 +39,7 @@ export const toggleSubmissionOpenness = async (submissionId: number) => {
 export const submitCodeSolution = async (payload: SubmissionFormValues) => {
   try {
     const { token } = await getUserToken();
-    const response = await fetch(`http://localhost:9090/api/v1/submissions`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/submissions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ export const submitCodeSolution = async (payload: SubmissionFormValues) => {
 export const getUserSessionByJudge = async (judgeType: string) => {
   try {
     const { token } = await getUserToken();
-    const res = await fetch(`http://localhost:9090/api/v1/submissions/session/${judgeType.toUpperCase()}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/submissions/session/${judgeType.toUpperCase()}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) return null;
@@ -75,7 +75,7 @@ export const getUserSessionByJudge = async (judgeType: string) => {
 
 export const addUserSession = async (payload: { online_judge: string; session_data: string }) => {
   const { token } = await getUserToken();
-  const res = await fetch(`http://localhost:9090/api/v1/submissions/session`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/submissions/session`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ export const addUserSession = async (payload: { online_judge: string; session_da
 
 export const updateUserSession = async (payload: { online_judge: string; session_data: string }) => {
   const { token } = await getUserToken();
-  const res = await fetch(`http://localhost:9090/api/v1/submissions/session/update`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/submissions/session/update`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -103,7 +103,7 @@ export const updateUserSession = async (payload: { online_judge: string; session
 
 export const deleteUserSession = async (sessionId: number) => {
   const { token } = await getUserToken();
-  const res = await fetch(`http://localhost:9090/api/v1/submissions/session/${sessionId}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/submissions/session/${sessionId}`, {
     method: 'DELETE',
     headers: { 
       'Authorization': `Bearer ${token}`,
@@ -117,7 +117,7 @@ export const deleteUserSession = async (sessionId: number) => {
 export const getSubmissionById = async (id: number) => {
   try {
     const { token } = await getUserToken();
-    const res = await fetch(`http://localhost:9090/api/v1/submissions/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/submissions/${id}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) return null;
@@ -140,7 +140,7 @@ export const getSubmissions = async (
 ): Promise<SubmitCodeResponse> => {
       const { token } = await getUserToken();
 
-  const url = new URL('http://localhost:9090/api/v1/submissions');
+  const url = new URL(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/submissions`);
   
   url.searchParams.append('page', filters.page.toString());
   url.searchParams.append('size', filters.size.toString());

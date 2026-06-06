@@ -34,18 +34,23 @@ export async function handleRegister(formState: formStateType
         const data = await res.json();
         console.log('register data' , data);
         if(!res.ok){
-            return{
-                success:false,
-                error:{},
-                message:data.message
-            }
+            // return{
+            //     success:false,
+            //     error:{},
+            //     message:data.message
+            // }
+            return {
+  success: false,
+  error: {} as formStateType['error'],  // ✅
+  message: data.message
+}
         } else{
             sendVerificationEmail(data.handle);
-              return {
-            success:true ,
-            error:{},
-            message:data.message
-        };
+             return {
+  success: true,
+  error: {} as formStateType['error'],  // ✅
+  message: data.message
+}
         }
       
     } catch (error) {

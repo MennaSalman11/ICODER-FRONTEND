@@ -61,7 +61,7 @@ export async function getAiSummary(userId: string): Promise<{ ok: true; data: Ai
   try {
     const { token } = await getUserToken();
 
-    const res = await fetch(`http://localhost:9090/api/v1/summary/${userId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/summary/${userId}`, {
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json"

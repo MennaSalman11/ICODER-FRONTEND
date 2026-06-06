@@ -4,7 +4,7 @@ import { Template, TemplateContent } from "@/src/types/templates.interface";
 // import { getUserToken } from "../server-utils";
 
 export default async function getAllTemplates(page:number , token:string): Promise<Template> {
-    const res = await fetch(`http://localhost:9090/api/v1/coding/editor/templates?page=${page}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates?page=${page}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -20,7 +20,7 @@ export default async function getAllTemplates(page:number , token:string): Promi
 // create a new template
 export const createTemplate = async (templateData: Omit<TemplateContent, 'template_id' | 'enabled' | 'monaco_name'>, token: string) => {
     // const { token } = await getUserToken();
-const res = await fetch(`http://localhost:9090/api/v1/coding/editor/templates`, {
+const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates`, {
     method: "POST",
     headers: { 
         "Content-Type": "application/json",
@@ -38,7 +38,7 @@ return res.json();
 // edit template 
 export const editTemplate = async ( templateData : Omit<TemplateContent, 'template_id' | 'enabled' | 'monaco_name'>,id : number) => {
     const {token} = await getUserToken();
-const res = await fetch (`http://localhost:9090/api/v1/coding/editor/templates/${id}`,{
+const res = await fetch (`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates/${id}`,{
     method:'PUT',
     headers:{
        "Content-Type": "application/json",
@@ -55,7 +55,7 @@ return res.json();
 // delete template 
 export const deleteTemplate = async (id : number) => {
     const {token} = await getUserToken();
-    const res = await fetch(`http://localhost:9090/api/v1/coding/editor/templates/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates/${id}`, {
         method: 'DELETE',
         headers: {
             "Content-Type": "application/json",
@@ -74,7 +74,7 @@ export const deleteTemplate = async (id : number) => {
 export const toggleTemplateStatus = async (id: number, forceValue: boolean) => {
     const { token } = await getUserToken();
     
-    const res = await fetch(`http://localhost:9090/api/v1/coding/editor/templates/${id}/toggle?force=${forceValue}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates/${id}/toggle?force=${forceValue}`, {
         method: 'PATCH', 
         headers: {
             "Content-Type": "application/json",
@@ -89,7 +89,7 @@ export const toggleTemplateStatus = async (id: number, forceValue: boolean) => {
 // retrieve templtae
 export const getTemplateById = async (id: number): Promise<TemplateContent> => {
     const { token } = await getUserToken();
-    const res = await fetch(`http://localhost:9090/api/v1/coding/editor/templates/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates/${id}`, {
         method: 'GET',
         headers: {
             "Authorization": `Bearer ${token}`
@@ -103,7 +103,7 @@ export const getTemplateById = async (id: number): Promise<TemplateContent> => {
 // retrieve temlate in problem ui
 export const getActiveTemplateByLanguag = async (languageId : number , token : string) =>{
 
-    const res = await fetch(`http://localhost:9090/api/v1/coding/editor/templates/active/${languageId}`,{
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates/active/${languageId}`,{
         method:'GET',
         headers:{
             "Content-Type": "application/json",

@@ -190,7 +190,7 @@ export const getProblems = async (filters: ProblemFilters) => {
         query.append('problemCode', filters.searchTerm);
     }
 
-    const res = await fetch(`http://localhost:9090/api/v1/problems?${query.toString()}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems?${query.toString()}`, {
         headers: {
             'content-type': 'application/json',
             'Authorization': `Bearer ${token}` 
@@ -206,7 +206,7 @@ export const getSingleProblem = async (judge: string, code: string) => {
     // التعديل 3: السيرفر مستني الـ judge في الـ URL حروف صغيرة (codeforces/123/metadata)
     const formattedJudge = judge.toLowerCase();
 
-    const res = await fetch(`http://localhost:9090/api/v1/problems/${formattedJudge}/${code}/metadata`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems/${formattedJudge}/${code}/metadata`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         }
@@ -225,7 +225,7 @@ export const getProblemsWithoutFilters = async (withoutFilters : ProblemWithoutF
         sort: withoutFilters.sort || 'id,desc',
     }); 
 
-    return fetch(`http://localhost:9090/api/v1/problems/reset-filters?${query.toString()}`, {
+    return fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems/reset-filters?${query.toString()}`, {
         headers: {
             'content-type': 'application/json',
             'Authorization': `Bearer ${token}` 
@@ -237,7 +237,7 @@ export const getProblemsWithoutFilters = async (withoutFilters : ProblemWithoutF
 export const favoriteProblem = async (problemId: any, isFavorite: boolean) => {
     const { token } = await getUserToken();
 
-    const res = await fetch(`http://localhost:9090/api/v1/problems`, { 
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems`, { 
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -265,7 +265,7 @@ export const getSolvedProblems = async (filters : ProblemFilters) =>{
         size: filters.size.toString(),
         sort: filters.sort || 'id,desc',
     })
-    const res = await fetch(`http://localhost:9090/api/v1/problems/solved?${query.toString()}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems/solved?${query.toString()}`, {
         headers: {
             'content-type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -282,7 +282,7 @@ export const getFavoriteProblems = async (filters : ProblemFilters) =>{
         size: filters.size.toString(),
         sort: filters.sort || 'id,desc',        
     })
-    const res = await fetch(`http://localhost:9090/api/v1/problems/favorites?${query.toString()}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems/favorites?${query.toString()}`, {
         headers: {
             'content-type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -299,7 +299,7 @@ export const getAttemptedProblems = async (filters : ProblemFilters) =>{
         size: filters.size.toString(),
         sort: filters.sort || 'id,desc',        
     })
-    const res = await fetch(`http://localhost:9090/api/v1/problems/attempted?${query.toString()}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems/attempted?${query.toString()}`, {
         headers: {
             'content-type': 'application/json',
             'Authorization': `Bearer ${token}`

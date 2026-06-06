@@ -7,7 +7,7 @@ export async function updatePassword(data : SecurityPayload) {
   try {
     const { token } = await getUserToken();
     console.log('token in update password service :' , token);
-    const res = await fetch(`http://localhost:9090/api/v1/auth/password`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/auth/password`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -36,7 +36,7 @@ export async function updateEmail(data: { new_email: string; current_password: s
   try {
     const { token } = await getUserToken();
     console.log('token in update email service :' , token);
-    const res = await fetch(`http://localhost:9090/api/v1/users/email/request-update`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/users/email/request-update`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

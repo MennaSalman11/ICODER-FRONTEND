@@ -5,7 +5,7 @@ new_password:new_password ,
  confirmation_password: confirmation_password , 
  token: token
     }
-    const res = await fetch(`http://localhost:9090/api/v1/auth/password/reset`,{
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/auth/password/reset`,{
         method:'POST' , 
         headers:{"Content-Type": "application/json",
              },

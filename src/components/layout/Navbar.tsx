@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { 
   User, 
   ChevronDown, 
@@ -24,9 +24,25 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-
+import { getProfile } from "@/src/lib/services/profile.services";
 const Navbar = () => {
   const { data: session, status } = useSession();
+  const [userImage, setUserImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserImage = async () => {
+      const handle = session?.user?.handle || session?.user?.name;
+      if (!handle) return;
+      const res = await getProfile(handle);
+      if (res.ok && res.data?.picture_url) {
+        setUserImage(res.data.picture_url);
+      }
+    };
+
+    if (status === "authenticated") {
+      fetchUserImage();
+    }
+  }, [status, session]);
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-white border-b border-slate-100">
@@ -87,11 +103,11 @@ const Navbar = () => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1 group outline-none">
                     <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
-                      {session?.user?.image ? (
-                        <img src={session.user.image} alt="User" className="w-full h-full object-cover" />
-                      ) : (
-                        <User size={20} className="text-slate-400" />
-                      )}
+                     {userImage ? (
+  <img src={userImage} alt="User" className="w-full h-full object-cover" />
+) : (
+  <User size={20} className="text-slate-400" />
+)}
                     </div>
                     <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition" />
                   </button>

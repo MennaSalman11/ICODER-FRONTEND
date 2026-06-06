@@ -115,8 +115,7 @@ useEffect(()=>{
                 />
               </FormControl>
               <FormMessage>
-                {action?.error?.handle?.[0]}
-              </FormMessage>
+{action.error?.handle?.[0]}              </FormMessage>
             </FormItem>
           )}
         />
@@ -134,7 +133,7 @@ useEffect(()=>{
                 />
               </FormControl>
                  <FormMessage>
-                {action?.error?.nickname?.[0]}
+                {action.error?.nickname?.[0]}
               </FormMessage>
             </FormItem>
           )}
@@ -149,11 +148,12 @@ useEffect(()=>{
               {/* <FormLabel>Email</FormLabel> */}
               <FormControl>
                 <Input placeholder="Email*" {...field}
+                
                 className="focus-visible:ring-[#fbcdac] focus-visible:border-[#eca877]"
                 />
               </FormControl>
                   <FormMessage>
-                {action?.error?.email?.[0]}
+                {action.error?.email?.[0]}
               </FormMessage>
             </FormItem>
           )}
@@ -168,11 +168,12 @@ useEffect(()=>{
               {/* <FormLabel>Password</FormLabel> */}
               <FormControl>
                 <Input placeholder="password*" {...field}
+                type="password"
                 className="focus-visible:ring-[#fbcdac] focus-visible:border-[#eca877]"
                 />
               </FormControl>
                   <FormMessage>
-                {action?.error?.password?.[0]}
+                {action.error?.password?.[0]}
               </FormMessage>
             </FormItem>
           )}
@@ -187,11 +188,12 @@ useEffect(()=>{
               {/* <FormLabel>Confirm Password</FormLabel> */}
               <FormControl>
                 <Input placeholder="Confirm password*" {...field} 
+                type="password"
                 className="focus-visible:ring-[#fbcdac] focus-visible:border-[#eca877]"
                 />
               </FormControl>
                   <FormMessage>
-                {action?.error?.password_confirmation?.[0]}
+                {action.error?.password_confirmation?.[0]}
               </FormMessage>
             </FormItem>
           )}
@@ -209,7 +211,7 @@ useEffect(()=>{
                 />
               </FormControl>
                   <FormMessage>
-                {action?.error?.school?.[0]}
+                {action.error?.school?.[0]}
               </FormMessage>
             </FormItem>
           )}

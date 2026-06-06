@@ -6,7 +6,7 @@ import {
   FileText, Send, Presentation, Settings, RotateCcw,
   MessageSquare, Play, Database, ChevronLeft, Clock
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import Whiteboard from "./Whiteboard";
@@ -52,15 +52,16 @@ export default function ProblemUI({ data }: { data: any }) {
   const [loading, setLoading] = useState(false);
   const [testCaseResults, setTestCaseResults] = useState<any[]>([]);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    if (data?.problem_title) {
-      toast.success(`Loaded: ${data.problem_title}`, {
-        position: 'top-right',
-      });
-    }
-  }, [data]);
+const toastShown = useRef(false);
+useEffect(() => {
+  setIsMounted(true);
+  if (data?.problem_title && !toastShown.current) {
+    toastShown.current = true;
+    toast.success(`Loaded: ${data.problem_title}`, {
+      position: 'top-right',
+    });
+  }
+}, []);
 
   const handleCrawlerRefresh = async () => {
     setLoading(true);
@@ -254,13 +255,15 @@ useEffect(() => {
 }, [selectedLanguage, session, isMounted, currentLangObj, setSourceCode]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] w-full bg-[#f8f9fa] overflow-hidden text-black pt-2 relative">
-
+<div className="flex flex-col h-[calc(100vh)] w-full bg-[#f8f9fa] overflow-hidden text-black pt-14 relative">
       <header className="h-14 bg-white border-b flex items-center justify-between px-4 shrink-0 shadow-sm relative z-[999]">
         <div className="flex items-center gap-4 min-w-0">
-          <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
-            <ChevronLeft className="size-5 text-gray-500" />
-          </button>
+       <button 
+  onClick={() => router.back()}
+  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+>
+  <ChevronLeft className="size-5 text-gray-500" />
+</button>
 
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2 truncate">

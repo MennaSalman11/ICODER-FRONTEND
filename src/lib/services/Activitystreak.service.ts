@@ -1,6 +1,5 @@
 import { getUserToken } from '../server-utils';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
 
 export interface StreakData {
   current_streak: number;
@@ -21,7 +20,7 @@ export interface ActivityGridDay {
 async function fetchWithAuth(endpoint: string): Promise<any> {
   const { token } = await getUserToken();
   
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${endpoint}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

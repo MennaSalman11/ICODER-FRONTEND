@@ -20,7 +20,6 @@ interface ProblemFilters {
 }
 interface Problem {
   problem_id: string;
-  favorite: boolean;
   online_judge: string;
   problem_code: string;
   searchTerm: string;
@@ -30,7 +29,8 @@ interface Problem {
   problem_title: string;
   problem_link: string;
   solved_count: number;
-  updated_at: string;
+   fetched_at: string;
+  is_favorite: boolean;
 }
 interface ProblemWithoutFilters {
   size: number;
@@ -114,14 +114,14 @@ const onFilterClick = async () => {
     setLoad(true);
     try {
       const judgeParam = filters.online_judge.toLowerCase();
-      const result = await getSingleProblem(judgeParam, filters.searchTerm);
+   const result = await getSingleProblem(judgeParam, filters.searchTerm);
 
-      if (result) {
-        setProblems([result]);
-      } else {
-        setProblems([]);
-        toast.error("No problem found with this code. Make sure you selected the correct Judge.");
-      }
+if (result && result.problem_title && result.problem_title !== "404") {
+  setProblems([result]);
+} else {
+  setProblems([]);
+  toast.error("Problem not found in this judge.");
+}
     } catch (error) {
       console.error("Error fetching specific problem:", error);
       setProblems([]);
@@ -136,26 +136,44 @@ const onFilterClick = async () => {
 
   // favorite problem
   const handleFavorite = async (problemId: string, currentState: boolean) => {
-    const nextStatus = !currentState;
+  const nextStatus = !currentState;
 
-    try {
-      const res = await favoriteProblem(problemId, nextStatus);
-      if (res.ok) {
-        setProblems((prev) =>
-          prev.map((p: any) =>
-            (p.problem_id === problemId)
-              ? { ...p, favorite: nextStatus }
-              : p
-          )
-        );
+  // optimistic update أولاً
+  setProblems((prev) =>
+    prev.map((p: any) =>
+      p.problem_id === problemId
+        ? { ...p, favorite: nextStatus, is_favorite: nextStatus } // الاتنين عشان تضمن
+        : p
+    )
+  );
 
-        toast.success(nextStatus ? `problem ${problemId} added to favorites` : `problem ${problemId} removed from favorites`);
-      }
-    } catch (error) {
-      console.error("Error updating favorite status:", error);
+  try {
+    const res = await favoriteProblem(problemId, nextStatus);
+    if (!res.ok) {
+      // rollback لو فشل
+      setProblems((prev) =>
+        prev.map((p: any) =>
+          p.problem_id === problemId
+            ? { ...p, favorite: currentState, is_favorite: currentState }
+            : p
+        )
+      );
       toast.error("Failed to update favorite status");
+      return;
     }
-  };
+    toast.success(nextStatus ? `Added to favorites` : `Removed from favorites`);
+  } catch (error) {
+    // rollback
+    setProblems((prev) =>
+      prev.map((p: any) =>
+        p.problem_id === problemId
+          ? { ...p, favorite: currentState, is_favorite: currentState }
+          : p
+      )
+    );
+    toast.error("Failed to update favorite status");
+  }
+};
   useEffect(() => {
 
     const loadData = async () => {
@@ -180,10 +198,10 @@ const onFilterClick = async () => {
         }
         if (data && data.content) {
           setProblems(data.content);
-          const mappedProblems = data.content.map((p: any) => ({
-            ...p,
-            favorite: activeTab === 'Favorite' ? true : (p.favorite ?? false)
-          }));
+  const mappedProblems = data.content.map((p: any) => ({
+  ...p,
+  favorite: activeTab === 'Favorite' ? true : (p.is_favorite ?? p.favorite ?? false)
+}));
           setProblems(mappedProblems);
           console.log("Fetched problems:", data);
         }
