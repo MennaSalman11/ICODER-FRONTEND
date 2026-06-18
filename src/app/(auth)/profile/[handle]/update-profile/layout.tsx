@@ -11,7 +11,6 @@ export default function UpdateProfileLayout({ children }: { children: React.Reac
   const menuItems = [
     { name: "General", href: `/profile/${handle}/update-profile`, icon: <Settings size={20} /> },
     { name: "Security", href: `/profile/${handle}/update-profile/security`, icon: <Shield size={20} /> },
-    { name: "External Accounts", href: `/profile/${handle}/update-profile/external-accounts`, icon: <LinkIcon size={20} /> },
     { name: "Code Templates", href: `/profile/${handle}/update-profile/code-templates`, icon: <Code size={20} /> },
   ];
 

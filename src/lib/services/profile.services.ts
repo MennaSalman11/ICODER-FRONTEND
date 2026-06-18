@@ -1,9 +1,9 @@
-"use server";
+// "use server";
 
 export async function getProfile (handle: string){
     try {
        
-        const res = await fetch(`http://localhost:9090/api/v1/users?handle=${handle}`,{
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/users?handle=${handle}`,{
             method:'GET',
             headers:{
    'Content-Type':'application/json'

@@ -20,7 +20,6 @@ interface ProblemFilters {
 }
 interface Problem {
   problem_id: string;
-  favorite: boolean;
   online_judge: string;
   problem_code: string;
   searchTerm: string;
@@ -30,7 +29,8 @@ interface Problem {
   problem_title: string;
   problem_link: string;
   solved_count: number;
-  updated_at: string;
+   fetched_at: string;
+  is_favorite: boolean;
 }
 interface ProblemWithoutFilters {
   size: number;
@@ -101,50 +101,79 @@ export default function ProblemPage() {
   };
 
   // handle filter button click
-  const onFilterClick = async () => {
+const onFilterClick = async () => {
+  // 1. التحقق من أن السيرش يحتوي على أرقام فقط
+  const isNumbersOnly = /^[0-9]+$/.test(filters.searchTerm);
 
-    if (filters.online_judge && filters.online_judge !== 'All Judges' && filters.searchTerm) {
-      setLoad(true);
-      try {
-        const result = await getSingleProblem(filters.online_judge, filters.searchTerm);
+  if (filters.searchTerm && !isNumbersOnly) {
+    toast.error("Please enter numbers only for the problem code.");
+    return; 
+  }
 
-        if (result) {
-          setProblems([result]);
-        } else {
-          setProblems([]);
-          toast.error("No problem found with this code. Make sure you selected the correct Judge.")
-        }
-      } catch (error) {
-        console.error("Error fetching specific problem:", error);
-        setProblems([]);
-      } finally {
-        setLoad(false);
-      }
+  if (filters.online_judge && filters.online_judge !== 'All Judges' && filters.searchTerm) {
+    setLoad(true);
+    try {
+      const judgeParam = filters.online_judge.toLowerCase();
+   const result = await getSingleProblem(judgeParam, filters.searchTerm);
+
+if (result && result.problem_title && result.problem_title !== "404") {
+  setProblems([result]);
+} else {
+  setProblems([]);
+  toast.error("Problem not found in this judge.");
+}
+    } catch (error) {
+      console.error("Error fetching specific problem:", error);
+      setProblems([]);
+      toast.error("An error occurred while fetching the problem.");
+    } finally {
+      setLoad(false);
     }
-  };
+  } else {
+    handleLoadData();
+  }
+};
 
   // favorite problem
   const handleFavorite = async (problemId: string, currentState: boolean) => {
-    const nextStatus = !currentState;
+  const nextStatus = !currentState;
 
-    try {
-      const res = await favoriteProblem(problemId, nextStatus);
-      if (res.ok) {
-        setProblems((prev) =>
-          prev.map((p: any) =>
-            (p.problem_id === problemId)
-              ? { ...p, favorite: nextStatus }
-              : p
-          )
-        );
+  // optimistic update أولاً
+  setProblems((prev) =>
+    prev.map((p: any) =>
+      p.problem_id === problemId
+        ? { ...p, favorite: nextStatus, is_favorite: nextStatus } // الاتنين عشان تضمن
+        : p
+    )
+  );
 
-        toast.success(nextStatus ? `problem ${problemId} added to favorites` : `problem ${problemId} removed from favorites`);
-      }
-    } catch (error) {
-      console.error("Error updating favorite status:", error);
+  try {
+    const res = await favoriteProblem(problemId, nextStatus);
+    if (!res.ok) {
+      // rollback لو فشل
+      setProblems((prev) =>
+        prev.map((p: any) =>
+          p.problem_id === problemId
+            ? { ...p, favorite: currentState, is_favorite: currentState }
+            : p
+        )
+      );
       toast.error("Failed to update favorite status");
+      return;
     }
-  };
+    toast.success(nextStatus ? `Added to favorites` : `Removed from favorites`);
+  } catch (error) {
+    // rollback
+    setProblems((prev) =>
+      prev.map((p: any) =>
+        p.problem_id === problemId
+          ? { ...p, favorite: currentState, is_favorite: currentState }
+          : p
+      )
+    );
+    toast.error("Failed to update favorite status");
+  }
+};
   useEffect(() => {
 
     const loadData = async () => {
@@ -169,10 +198,10 @@ export default function ProblemPage() {
         }
         if (data && data.content) {
           setProblems(data.content);
-          const mappedProblems = data.content.map((p: any) => ({
-            ...p,
-            favorite: activeTab === 'Favorite' ? true : (p.favorite ?? false)
-          }));
+  const mappedProblems = data.content.map((p: any) => ({
+  ...p,
+  favorite: activeTab === 'Favorite' ? true : (p.is_favorite ?? p.favorite ?? false)
+}));
           setProblems(mappedProblems);
           console.log("Fetched problems:", data);
         }
@@ -226,12 +255,17 @@ export default function ProblemPage() {
           <div className="md:col-span-6 relative">
             <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Search Problem</label>
             <Search className="absolute left-3 bottom-3 text-slate-400" size={18} />
-            <Input
-              value={filters.searchTerm}
-              onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
-              className="pl-10 bg-slate-50"
-              placeholder="Search by ID or Title..."
-            />
+           <Input
+  value={filters.searchTerm}
+  onChange={(e) => {
+    const val = e.target.value;
+    if (val === '' || /^[0-9]+$/.test(val)) {
+      setFilters({ ...filters, searchTerm: val });
+    }
+  }}
+  className="pl-10 bg-slate-50"
+  placeholder="Enter Problem Code (Numbers)..."
+/>
           </div>
           <div className="md:col-span-3 flex gap-2">
             <Button

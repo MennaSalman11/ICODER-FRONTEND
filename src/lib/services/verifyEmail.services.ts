@@ -1,6 +1,6 @@
 export async function sendVerificationEmail(handle: string) {
   try {
-    const res = await fetch(`http://localhost:9090/api/v1/auth/verify/send`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/auth/verify/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ handle }),

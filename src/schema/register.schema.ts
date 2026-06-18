@@ -19,21 +19,28 @@ export const RegisterFormSchema = z.object({
 export type RegisterSchema = z.infer<typeof RegisterFormSchema>;
 
 
-export const formState={
-  success:false , 
-  error:{},
+export const formState: formStateType = {
+  success: false,
+  error: {
+    handle: undefined,
+    nickname: undefined,
+    email: undefined,
+    password: undefined,
+    password_confirmation: undefined,
+    school: undefined,
+  },
   message: null
 }
 
-export type formStateType={
-success:boolean ,
-error:{
-    handle?:string[];
-    nickname?:string[];
-    email?:string[];
-    password?:string[];
-    password_confirmation?:string[];
-    school?:string[];
-},
-message:string | null
+export type formStateType = {
+  success: boolean,
+  error: {
+    handle?: string[];
+    nickname?: string[];
+    email?: string[];
+    password?: string[];
+    password_confirmation?: string[];
+    school?: string[];
+  },
+  message: string | null
 }

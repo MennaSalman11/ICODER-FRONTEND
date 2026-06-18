@@ -6,7 +6,7 @@ export async function updateGeneralSettingsData(data : GeneralSettingsPayload) {
  const {token} =await getUserToken();
 console.log('tokeeeen is :' , token);
   
-const res = await fetch(`http://localhost:9090/api/v1/users/update`,{
+const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/users/update`,{
     method:'PUT',
     headers:{
         'Content-Type':'application/json',

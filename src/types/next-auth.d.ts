@@ -9,7 +9,8 @@ declare module "next-auth" {
       name?: string;
       role?: string;
       token?: string;
-    } & DefaultSession["user"] // بيحافظ على الخصائص الأساسية زي الـ image
+       numericId?: string;
+    } & DefaultSession["user"]
     token: string;
   }
 
@@ -19,6 +20,7 @@ declare module "next-auth" {
     email: string;
     role?: string;
     token?: string;
+     numericId?: string;
   }
 }
 // import NextAuth, { DefaultSession } from "next-auth";

@@ -5,7 +5,7 @@ import { getUserToken } from "../server-utils";
 // get specific problem by id
 export const getSpecificProblem = async (judge : string, code : string) =>{
     const {token} = await getUserToken();
-    const res = await fetch(`http://localhost:9090/api/v1/problems/${judge}/${code}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems/${judge}/${code}`, {
         headers:{
             'content-type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -23,7 +23,7 @@ export const getSpecificProblem = async (judge : string, code : string) =>{
 
 export const getSpecificProblemByCrawler = async (judge : string, code : string) =>{
     const {token} = await getUserToken();
-    const res = await fetch(`http://localhost:9090/api/v1/problems/recrawl/${judge}/${code}`, { 
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/problems/recrawl/${judge}/${code}`, { 
         headers:{
             'content-type': 'application/json',
             'Authorization': `Bearer ${token}`

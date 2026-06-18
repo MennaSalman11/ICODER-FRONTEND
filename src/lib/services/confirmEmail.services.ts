@@ -10,7 +10,7 @@ export interface ConfirmEmailResponse {
 
 export async function confirmEmail (token : string){
 try {
-    const res = await fetch(`http://localhost:9090/api/v1/auth/verify?token=${token}`)
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/auth/verify?token=${token}`)
     const data =await res.json();
     return {
         ok : res.ok,

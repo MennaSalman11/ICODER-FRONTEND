@@ -4,14 +4,14 @@ import { Star, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 
 interface Problem {
+   is_favorite: boolean
   problem_id: string;
-  favorite: boolean;
   online_judge: string;
   problem_code: string;
   problem_title: string;
   problem_link: string;
   solved_count: number;
-  updated_at: string;
+   fetched_at: string;
 }
 
 interface ProblemsTableProps {
@@ -62,18 +62,18 @@ export default function ProblemsTable({ problems, load, handleFavorite }: Proble
             <tr key={problem.problem_id} className="hover:bg-slate-50/50 transition cursor-pointer">
               <td className="px-6 py-5">{problem.problem_id}</td>
               <td className="px-6 py-5">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleFavorite(problem.problem_id, problem.favorite);
-                  }}
-                  className="hover:scale-110 transition-transform p-1"
-                >
-                  <Star 
-                    className={problem.favorite ? "fill-yellow-400 text-yellow-400" : "text-slate-400"} 
-                    size={18} 
-                  />
-                </button>
+              <button
+onClick={(e) => {
+  e.stopPropagation();
+  handleFavorite(problem.problem_id, problem.is_favorite);
+}}
+className="hover:scale-110 transition-transform p-1"
+>
+  <Star
+    className={problem.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-slate-400"}
+    size={18}
+  />
+</button>
               </td>
               <td className="px-6 py-5 font-medium text-blue-600">{problem.online_judge.toUpperCase()}</td>
               <td className="px-6 py-5 text-blue-600 font-bold">
@@ -99,7 +99,14 @@ export default function ProblemsTable({ problems, load, handleFavorite }: Proble
                 <span className="text-[10px] text-slate-400 uppercase">Users</span>
               </td>
               <td className="px-6 py-5 text-slate-400 text-sm">
-                {new Date(problem.updated_at).toLocaleDateString()}
+                {problem.fetched_at 
+  ? new Date(problem.fetched_at).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short', 
+      year: 'numeric'
+    })
+  : '—'
+}
               </td>
             </tr>
           ))}
