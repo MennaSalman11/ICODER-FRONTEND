@@ -11,13 +11,13 @@ import EditContestModal from "../components/EditContestModal";
 import { toast } from "sonner";
 
 // استيراد الأيقونات للكارت الجديد
-import { 
-    FiInfo, 
-    FiUser, 
-    FiUsers, 
-    FiActivity, 
-    FiClock, 
-    FiArrowRight 
+import {
+    FiInfo,
+    FiUser,
+    FiUsers,
+    FiActivity,
+    FiClock,
+    FiArrowRight
 } from "react-icons/fi";
 import ScoreBoard from "../components/scoreBoard";
 
@@ -25,13 +25,21 @@ export default function ContestDashboardPage() {
     const params = useParams();
     const contestId = params.contestId as string;
 
+    // ── 🎯 تخزين الـ ID في الـ Session Storage لصاحبتك ──────────────────
+    useEffect(() => {
+        if (contestId && contestId !== "undefined") {
+            sessionStorage.setItem("activeContestId", contestId);
+            console.log("✅ Contest ID saved to session storage:", contestId);
+        }
+    }, [contestId]);
+
     // ── States ────────────────────────────────────────────────────────────
     const [contestData, setContestData] = useState<any>(null);
     const [problems, setProblems] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState("overview");
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [fetchError, setFetchError] = useState<string>(""); // 🎯 تم حل مشكلة TypeScript هنا
+    const [fetchError, setFetchError] = useState<string>(""); 
 
     const { data: session } = useSession();
     const token = (session as any)?.accessToken;
@@ -78,13 +86,12 @@ export default function ContestDashboardPage() {
                 const problemsPromise = ContestService.getContestProblems(contestId, token)
                     .catch(err => {
                         console.error("Failed to fetch problems:", err);
-                        return []; 
+                        return [];
                     });
 
-                // 2. طلب الداتا من المسار العادي مباشرة (مع تمرير false لأن مفيش GET protected منفصل)
-                // السيرفر طالما لقاكِ باعتة الـ Token وعاملة Join للمسابقة من الـ Swagger هيوافق يرجع الداتا فوراً
+                // 2. طلب الداتا من المسار العادي مباشرة
                 const details = await ContestService.getContestById(contestId, token);
-                
+
                 // 3. انتظار داتا المسائل
                 const problemsData = await problemsPromise;
 
@@ -92,13 +99,15 @@ export default function ContestDashboardPage() {
                 setContestData(details);
 
                 const mappedProblems = problemsData.map((p: any) => ({
-                    problem_id: p.problem_id,
+                    problem_id: p.problem_id || p.problemId || p.id,
                     problem_alias: p.problem_alias,
                     title: p.title,
                     solved_count: p.solved_count,
                     attempted_count: p.attempted_count,
                     solved: p.solved,
-                    origin: p.origin || p.problem_origin, 
+                    origin: p.origin || p.problem_origin,
+                    judge_type: p.judge_type,
+                    problem_code: p.problem_code,
                 }));
 
                 setProblems(mappedProblems);
@@ -159,7 +168,7 @@ export default function ContestDashboardPage() {
             </div>
         );
     }
-
+   
     return (
         <div className="min-h-screen bg-[#f4f5f7] mt-20 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -185,9 +194,8 @@ export default function ContestDashboardPage() {
                 {/* ── Overview Tab ─────────────────────────────────────────── */}
                 {activeTab === "overview" && (
                     <div className="space-y-6">
-                        
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                            {/* الوصف (يمين الشاشة بالصورة الأصلية) */}
+                            {/* الوصف */}
                             <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between space-y-6">
                                 <div>
                                     <div className="flex items-center gap-2 text-gray-800 font-bold text-lg mb-4">
@@ -254,14 +262,13 @@ export default function ContestDashboardPage() {
 
                         {/* جدول المسائل أسفل الكارت */}
                         <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestId} />
-
                     </div>
                 )}
 
                 {/* ── Problems Tab ─────────────────────────────────────────── */}
                 {activeTab === "problems" && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                        <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestId} />
+                        <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestData.id}  />
                     </div>
                 )}
 
@@ -275,7 +282,7 @@ export default function ContestDashboardPage() {
                 {/* ── Rank Tab ─────────────────────────────────────────────── */}
                 {activeTab === "rank" && (
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-12 text-center">
-                       <ScoreBoard/>
+                        <ScoreBoard />
                     </div>
                 )}
             </div>
@@ -286,6 +293,7 @@ export default function ContestDashboardPage() {
                 onClose={() => setIsEditModalOpen(false)}
                 initialData={contestData}
                 onSave={handleUpdateContest}
+                problems={problems}
             />
         </div>
     );

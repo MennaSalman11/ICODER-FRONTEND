@@ -8,14 +8,14 @@ import { useSession } from "next-auth/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type JudgeType = "CODEFORCES" | "CSES" | "V_JUDGE";
+type JudgeType = "CODEFORCES" | "SCES" | "V_JUDGE";
 type VerifyStatus = "idle" | "loading" | "success" | "error";
 
 interface Problem {
     id: string;
     judgeType: JudgeType;
-    problemCode: string;    // e.g. "1030A"
-    verifiedId: number | null; // resolved from API — sent on submit
+    problemCode: string;       
+    verifiedId: number | null; 
     verifyStatus: VerifyStatus;
     alias: string;
     weight: number | "";
@@ -36,7 +36,8 @@ interface EditContestModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialData: any;
-    onSave: (formData: any) => Promise<void>;
+    onSave: (payload: any) => Promise<void>;
+    problems?: any[]; 
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,7 +47,13 @@ const PROBLEMS_API_BASE = "http://localhost:9090/api/v1/problems";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function EditContestModal({ isOpen, onClose, initialData, onSave }: EditContestModalProps) {
+export default function EditContestModal({ 
+    isOpen, 
+    onClose, 
+    initialData, 
+    onSave, 
+    problems: incomingProblems 
+}: EditContestModalProps) {
     const { data: session } = useSession();
     const token = (session as any)?.accessToken as string | undefined;
 
@@ -63,85 +70,13 @@ export default function EditContestModal({ isOpen, onClose, initialData, onSave 
     const [problems, setProblems] = useState<Problem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // ── Seed form from initialData when modal opens ───────────────────────────
-
-    useEffect(() => {
-        if (isOpen && initialData) {
-            console.log("Initial Data Received in Modal:", initialData);
-
-            // 1. Safe date conversion
-            let localISOTime = "";
-            const rawDate = initialData.begin_time || initialData.beginTime;
-            if (rawDate) {
-                const date = new Date(rawDate);
-                if (!isNaN(date.getTime())) {
-                    const offset = date.getTimezoneOffset() * 60000;
-                    localISOTime = new Date(date.getTime() - offset).toISOString().slice(0, 16);
-                }
-            }
-
-            const currentContestType = initialData.contest_type || initialData.contestType ;
-            const currentOpenness =
-                initialData.contest_openness || initialData.contestOpenness || initialData.openness ;
-
-            setFormData({
-                title: initialData.title || "",
-                description: initialData.description || "",
-                beginTime: localISOTime,
-                length: initialData.length || "",
-                contestType: initialData.contest_type,
-                openness: initialData.contest_openness,
-                password: initialData.password || "",
-                historyRank:
-                    initialData.history_rank !== undefined
-                        ? !!initialData.history_rank
-                        : !!initialData.historyRank,
-            });
-
-            // 2. Map existing problem set — existing problems are treated as pre-verified
-            //    We store judgeType/problemCode as empty and mark as "success" so the
-            //    row is valid; the verifiedId is set from the stored problem_id.
-            const rawProblemSet = initialData.problem_set || initialData.problemSet;
-            if (rawProblemSet && Array.isArray(rawProblemSet)) {
-                setProblems(
-                    rawProblemSet.map((p: any) => ({
-                        id: generateId(),
-                        judgeType: (p.judge_type || p.judgeType || "CODEFORCES") as JudgeType,
-                        problemCode: p.problem_code || p.problemCode || "",
-                        verifiedId:
-                            p.problem_id !== undefined
-                                ? Number(p.problem_id)
-                                : p.problemId !== undefined
-                                    ? Number(p.problemId)
-                                    : null,
-                        // Existing problems from the backend are considered verified
-                        verifyStatus: "success",
-                        alias: p.problem_alias || p.problemAlias || p.alias || "",
-                        weight:
-                            p.problem_weight !== undefined
-                                ? p.problem_weight
-                                : p.problemWeight !== undefined
-                                    ? p.problemWeight
-                                    : "",
-                    }))
-                );
-            } else {
-                setProblems([]);
-            }
-        }
-    }, [isOpen, initialData]);
-
     // ── Form helpers ──────────────────────────────────────────────────────────
 
     const handleChange = <K extends keyof ContestFormData>(key: K, value: ContestFormData[K]) => {
         setFormData((prev) => ({ ...prev, [key]: value }));
     };
 
-    const updateProblemField = (id: string, updates: Partial<Omit<Problem, "id">>) => {
-        setProblems((prev) =>
-            prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-        );
-    };
+    // ── Problem set helpers ───────────────────────────────────────────────────
 
     const addProblem = () => {
         setProblems((prev) => [
@@ -158,45 +93,106 @@ export default function EditContestModal({ isOpen, onClose, initialData, onSave 
         ]);
     };
 
+    const updateProblemField = (id: string, updates: Partial<Omit<Problem, "id">>) => {
+        setProblems((prev) =>
+            prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+        );
+    };
+
     const removeProblem = (id: string) => {
         setProblems((prev) => prev.filter((p) => p.id !== id));
     };
 
     // ── Problem Metadata API ──────────────────────────────────────────────────
 
-    const verifyProblem = useCallback(
-        async (id: string, judgeType: JudgeType, problemCode: string) => {
-            const code = problemCode.trim();
-            if (!code) return;
+    const verifyProblem = useCallback(async (id: string, judgeType: JudgeType, problemCode: string) => {
+        const code = problemCode.trim();
+        if (!code) return; 
 
-            updateProblemField(id, { verifyStatus: "loading", verifiedId: null });
+        updateProblemField(id, { verifyStatus: "loading", verifiedId: null });
 
-            try {
-                const headers: Record<string, string> = {};
-                if (token) headers["Authorization"] = `Bearer ${token}`;
+        try {
+            const headers: Record<string, string> = {};
+            if (token) headers["Authorization"] = `Bearer ${token}`;
 
-                const response = await fetch(
-                    `${PROBLEMS_API_BASE}/${judgeType}/${encodeURIComponent(code)}/metadata`,
-                    { method: "GET", headers }
-                );
+            const response = await fetch(
+                `${PROBLEMS_API_BASE}/${judgeType}/${encodeURIComponent(code)}/metadata`,
+                { method: "GET", headers }
+            );
 
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-                const data = await response.json();
-                const resolvedId = data?.problem_id ?? data?.id ?? null;
-
-                if (resolvedId === null) throw new Error("problem_id missing in response");
-
-                updateProblemField(id, {
-                    verifyStatus: "success",
-                    verifiedId: Number(resolvedId),
-                });
-            } catch {
-                updateProblemField(id, { verifyStatus: "error", verifiedId: null });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
-        },
-        [token]
-    );
+
+            const data = await response.json();
+            const resolvedId = data?.problem_id ?? data?.id ?? null;
+
+            if (resolvedId === null) throw new Error("problem_id missing in response");
+
+            updateProblemField(id, {
+                verifyStatus: "success",
+                verifiedId: Number(resolvedId),
+            });
+        } catch {
+            updateProblemField(id, { verifyStatus: "error", verifiedId: null });
+        }
+    }, [token]);
+
+    // ── Seed form from initialData ───────────────────────────────────────────
+
+    useEffect(() => {
+        if (isOpen && initialData) {
+            let localISOTime = "";
+            const rawDate = initialData.begin_time || initialData.beginTime;
+            if (rawDate) {
+                const d = new Date(rawDate);
+                if (!isNaN(d.getTime())) {
+                    localISOTime = d.getFullYear() + "-" + 
+                        String(d.getMonth() + 1).padStart(2, "0") + "-" + 
+                        String(d.getDate()).padStart(2, "0") + "T" + 
+                        String(d.getHours()).padStart(2, "0") + ":" + 
+                        String(d.getMinutes()).padStart(2, "0");
+                }
+            }
+
+            setFormData({
+                title: initialData.title || "",
+                description: initialData.description || "",
+                beginTime: localISOTime,
+                length: initialData.length || "",
+                contestType: initialData.contest_type || initialData.contestType || "CLASSICAL",
+                openness: initialData.contest_openness || initialData.openness || "public",
+                password: initialData.password || "",
+                historyRank: !!(initialData.history_rank ?? initialData.historyRank),
+            });
+
+            if (incomingProblems && Array.isArray(incomingProblems)) {
+                const mapped = incomingProblems.map((p: any) => {
+                    const id = generateId();
+                    const rawJudge = p.judge_type || p.judgeType || "CODEFORCES";
+                    const judgeType = (typeof rawJudge === "string" ? rawJudge.toUpperCase() : "CODEFORCES") as JudgeType;
+                    const problemCode = p.problem_code || p.problemCode || "";
+
+                    if (problemCode.trim()) {
+                        setTimeout(() => {
+                            verifyProblem(id, judgeType, problemCode);
+                        }, 50);
+                    }
+
+                    return {
+                        id,
+                        judgeType,
+                        problemCode,
+                        verifiedId: p.problem_id ?? p.problemId ?? p.id ?? null,
+                        verifyStatus: "loading" as VerifyStatus, 
+                        alias: p.problem_alias || p.alias || "",
+                        weight: p.problem_weight ?? p.weight ?? "",
+                    };
+                });
+                setProblems(mapped);
+            }
+        }
+    }, [isOpen, initialData, incomingProblems, verifyProblem]);
 
     // ── Submit ────────────────────────────────────────────────────────────────
 
@@ -207,48 +203,36 @@ export default function EditContestModal({ isOpen, onClose, initialData, onSave 
             toast.error("Please enter a contest title.");
             return;
         }
-
         if (!formData.beginTime) {
-            toast.error("Please enter a begin time.");
+            toast.error("Please set a begin time.");
+            return;
+        }
+        if (!formData.length.trim()) {
+            toast.error("Please enter the contest duration (HH:mm:ss).");
+            return;
+        }
+        if (formData.openness === "protected" && !formData.password?.trim()) {
+            toast.error("A password is required for protected contests.");
             return;
         }
 
-        const isGroupPrivate =
-            initialData?.group_openness === "private" || initialData?.group?.openness === "private";
-        if (isGroupPrivate && formData.openness !== "private") {
-            toast.error("This contest belongs to a private group. Openness must be set to PRIVATE.");
-            return;
-        }
-
-        const rawLength = formData.length.trim();
-        const lengthRegex = /^([0-9]{1,2}):([0-5][0-9])(:([0-5][0-9]))?$/;
-        if (!lengthRegex.test(rawLength)) {
-            toast.error("Length must be in HH:mm or HH:mm:ss format.");
-            return;
-        }
-
-        // Guard: no unverified or broken rows
         const hasUnverified = problems.some((p) => p.verifyStatus !== "success");
         if (problems.length > 0 && hasUnverified) {
-            toast.error("Please verify all problems before saving.");
+            toast.error("Please verify all problems before submitting.");
             return;
         }
 
-        const beginTimeISO = new Date(formData.beginTime).toISOString();
+        const problemSet = problems.map((p) => ({
+            problem_id: p.verifiedId!,
+            problem_alias: p.alias.trim(),
+            problem_weight: String(p.weight),
+        }));
+
+        const beginTimeISO = formData.beginTime ? new Date(formData.beginTime).toISOString() : "";
+        const rawLength = formData.length.trim();
         const lengthFormatted = rawLength.split(":").length === 2 ? `${rawLength}:00` : rawLength;
 
         const payload = {
-            id: Number(initialData?.id),
-            contestId: Number(initialData?.id),
-            contest_id: Number(initialData?.id),
-
-            group_id:
-                initialData?.group_id !== undefined
-                    ? Number(initialData.group_id)
-                    : initialData?.groupId !== undefined
-                        ? Number(initialData.groupId)
-                        : null,
-
             title: formData.title.trim(),
             description: formData.description.trim(),
             begin_time: beginTimeISO,
@@ -256,23 +240,18 @@ export default function EditContestModal({ isOpen, onClose, initialData, onSave 
             contest_type: formData.contestType,
             contest_openness: formData.openness,
             history_rank: formData.historyRank,
-
-            // Map using verified IDs from the API
-            problem_set: problems.map((p) => ({
-                problem_id: p.verifiedId!,
-                problem_alias: p.alias.trim(),
-                problem_weight: String(p.weight),
-            })),
-
+            problem_set: problemSet,
             ...(formData.openness === "protected" && { password: formData.password }),
         };
 
         setIsSubmitting(true);
         try {
             await onSave(payload);
+            toast.success("Contest updated successfully!");
             onClose();
-        } catch (error) {
-            console.error("Error updating contest:", error);
+        } catch (error: any) {
+            const msg = error?.message || "Failed to update contest.";
+            toast.error(msg);
         } finally {
             setIsSubmitting(false);
         }
@@ -280,299 +259,292 @@ export default function EditContestModal({ isOpen, onClose, initialData, onSave 
 
     if (!isOpen) return null;
 
-    // ── Derived state ─────────────────────────────────────────────────────────
     const hasInvalidProblem = problems.some(
         (p) => p.verifyStatus === "error" || (p.problemCode.trim() && p.verifyStatus === "idle")
     );
 
-    // ── Style tokens ──────────────────────────────────────────────────────────
+    // 🎨 تحسين الاستايلات لتكون أنعم ومريحة للعين (Soft borders, subtle shadow, clean text)
     const inputCls =
-        "w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition placeholder:text-gray-400 text-gray-900";
+        "w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20 focus:border-[#1b4583] transition-all bg-gray-50/50 focus:bg-white placeholder:text-gray-400 font-medium text-gray-800";
     const selectCls =
-        "w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition bg-white text-gray-900 cursor-pointer";
-    const labelCls = "block text-sm font-semibold text-gray-700 mb-1.5";
+        "w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20 focus:border-[#1b4583] transition-all bg-gray-50/50 focus:bg-white text-gray-700 font-medium cursor-pointer";
+    const labelCls = "block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5";
 
     return (
         <>
+            {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300"
+                className="fixed inset-0 bg-black/30 backdrop-blur-md z-40 transition-opacity duration-300"
                 onClick={onClose}
             />
-            <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+
+            {/* Modal */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
                 <div
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200"
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-gray-100 flex flex-col animate-in fade-in zoom-in-95 duration-200"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* ── Header ─────────────────────────────────────────── */}
-                    <div className="flex items-start justify-between p-6 pb-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-6 border-b border-gray-50">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900">Edit Contest</h2>
-                            <p className="text-sm text-gray-500 mt-1">Update the contest details below.</p>
+                            <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Edit Contest</h2>
+                            <p className="text-xs text-gray-400 mt-0.5">Update configuration and manage the problem set.</p>
                         </div>
                         <button
-                            type="button"
                             onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 transition cursor-pointer p-1 hover:bg-gray-100 rounded-lg"
+                            className="text-gray-400 hover:text-gray-600 transition cursor-pointer p-2 hover:bg-gray-50 rounded-xl"
                         >
                             <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit}>
-                        <div className="px-6 pb-6 space-y-5">
-
-                            {/* Title */}
-                            <div>
-                                <label className={labelCls}>Title</label>
-                                <input
-                                    type="text"
-                                    value={formData.title}
-                                    onChange={(e) => handleChange("title", e.target.value)}
-                                    className={inputCls}
-                                />
-                            </div>
-
-                            {/* Description */}
-                            <div>
-                                <label className={labelCls}>Description</label>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={(e) => handleChange("description", e.target.value)}
-                                    rows={3}
-                                    className={`${inputCls} resize-none`}
-                                />
-                            </div>
-
-                            {/* Begin Time + Length */}
-                            <div className="grid grid-cols-2 gap-4">
+                    {/* Body */}
+                    <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                        {/* 2-Column Responsive Grid to Avoid Scrolling */}
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                            
+                            {/* Left Column: Contest Info (5 Cols) */}
+                            <div className="md:col-span-5 space-y-4">
                                 <div>
-                                    <label className={labelCls}>Begin Time</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={formData.beginTime}
-                                        onChange={(e) => handleChange("beginTime", e.target.value)}
-                                        className={inputCls}
-                                    />
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Length (HH:mm:ss)</label>
+                                    <label className={labelCls}>Title</label>
                                     <input
                                         type="text"
-                                        value={formData.length}
-                                        onChange={(e) => handleChange("length", e.target.value)}
+                                        value={formData.title}
+                                        onChange={(e) => handleChange("title", e.target.value)}
+                                        placeholder="e.g. Round #42 — Div. 1"
                                         className={inputCls}
                                     />
                                 </div>
-                            </div>
 
-                            {/* Contest Type + Openness */}
-                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className={labelCls}>Contest Type</label>
-                                    <select
-                                        value={formData.contestType}
-                                        onChange={(e) => handleChange("contestType", e.target.value as any)}
-                                        className={selectCls}
-                                    >
-                                        <option value="CLASSICAL">CLASSICAL</option>
-                                        <option value="GROUP">GROUP</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelCls}>Openness</label>
-                                    <select
-                                        value={formData.openness}
-                                        onChange={(e) => handleChange("openness", e.target.value as any)}
-                                        className={selectCls}
-                                    >
-                                        <option value="public">PUBLIC</option>
-                                        <option value="protected">PROTECTED</option>
-                                        <option value="private">PRIVATE</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Password */}
-                            {formData.openness === "protected" && (
-                                <div>
-                                    <label className={labelCls}>Password</label>
-                                    <input
-                                        type="text"
-                                        value={formData.password}
-                                        onChange={(e) => handleChange("password", e.target.value)}
-                                        className={inputCls}
+                                    <label className={labelCls}>Description</label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={(e) => handleChange("description", e.target.value)}
+                                        rows={2}
+                                        placeholder="Brief contest overview..."
+                                        className={`${inputCls} resize-none`}
                                     />
                                 </div>
-                            )}
 
-                            {/* ── Problem Set ──────────────────────────── */}
-                            <div>
-                                <div className="flex items-center justify-between mb-3">
-                                    <label className="text-sm font-semibold text-gray-700">
-                                        Problem Set
-                                    </label>
+                                <div className="grid grid-cols-2 gap-3 ">
+                                    <div>
+                                        <label className={labelCls}>Begin Time</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={formData.beginTime}
+                                            onChange={(e) => handleChange("beginTime", e.target.value)}
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Length <span className="text-gray-400 font-normal">(HH:mm:ss)</span></label>
+                                        <input
+                                            type="text"
+                                            value={formData.length}
+                                            onChange={(e) => handleChange("length", e.target.value)}
+                                            placeholder="02:00:00"
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className={labelCls}>Contest Type</label>
+                                        <select
+                                            value={formData.contestType}
+                                            onChange={(e) => handleChange("contestType", e.target.value as any)}
+                                            className={selectCls}
+                                        >
+                                            <option value="CLASSICAL">CLASSICAL</option>
+                                            <option value="GROUP">GROUP</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Openness</label>
+                                        <select
+                                            value={formData.openness}
+                                            onChange={(e) => handleChange("openness", e.target.value as any)}
+                                            className={selectCls}
+                                        >
+                                            <option value="public">PUBLIC</option>
+                                            <option value="protected">PROTECTED</option>
+                                            <option value="private">PRIVATE</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {formData.openness === "protected" && (
+                                    <div className="animate-in slide-in-from-top-2 duration-200">
+                                        <label className={labelCls}>Password</label>
+                                        <input
+                                            type="text"
+                                            value={formData.password}
+                                            onChange={(e) => handleChange("password", e.target.value)}
+                                            placeholder="Access password"
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right Column: Problem Set (7 Cols) */}
+                            <div className="md:col-span-7 border-l border-gray-100 pl-0 md:pl-8 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Problem Set</label>
+                                        <p className="text-[11px] text-gray-400 mt-0.5">Problems automatically verify on blur.</p>
+                                    </div>
                                     <button
                                         type="button"
                                         onClick={addProblem}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1b4583] border border-[#1b4583] rounded-lg hover:bg-[#1b4583]/5 transition cursor-pointer"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#1b4583] bg-[#1b4583]/5 rounded-xl hover:bg-[#1b4583]/10 transition cursor-pointer"
                                     >
-                                        <FontAwesomeIcon icon={faPlus} className="w-3 h-3" />
+                                        <FontAwesomeIcon icon={faPlus} className="w-2.5 h-2.5" />
                                         Add Problem
                                     </button>
                                 </div>
 
-                                {problems.length === 0 ? (
-                                    <p className="text-xs text-gray-400 text-center py-4 border border-dashed border-gray-200 rounded-lg">
-                                        No problems added yet. Click &quot;+ Add Problem&quot; to start.
-                                    </p>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {/* Column headers */}
-                                        <div className="grid grid-cols-[120px_1fr_70px_70px_36px] gap-2 px-1">
-                                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                                                Judge
-                                            </span>
-                                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                                                Problem Code
-                                            </span>
-                                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                                                Alias
-                                            </span>
-                                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                                                Weight
-                                            </span>
-                                            <span />
+                                {/* Problem Row List container */}
+                                <div className="max-h-[280px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                                    {problems.length === 0 ? (
+                                        <div className="text-center py-10 border border-dashed border-gray-200 rounded-2xl bg-gray-50/30">
+                                            <p className="text-xs font-medium text-gray-400">
+                                                No problems added yet. Click "+ Add Problem" to populate.
+                                            </p>
                                         </div>
-
-                                        {problems.map((problem) => (
-                                            <div
-                                                key={problem.id}
-                                                className="animate-in fade-in slide-in-from-top-1 duration-150"
-                                            >
-                                                {/* Input row */}
-                                                <div className="grid grid-cols-[120px_1fr_70px_70px_36px] gap-2 items-center">
-                                                    {/* Judge Type Dropdown */}
-                                                    <select
-                                                        value={problem.judgeType}
-                                                        onChange={(e) => {
-                                                            const newJudge = e.target.value as JudgeType;
-                                                            updateProblemField(problem.id, {
-                                                                judgeType: newJudge,
-                                                                verifyStatus: "idle",
-                                                                verifiedId: null,
-                                                            });
-                                                            if (problem.problemCode.trim()) {
-                                                                verifyProblem(problem.id, newJudge, problem.problemCode);
-                                                            }
-                                                        }}
-                                                        className="px-2 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition bg-white text-gray-700 cursor-pointer w-full"
-                                                    >
-                                                        <option value="CODEFORCES">CODEFORCES</option>
-                                                        <option value="CSES">CSES</option>
-                                                        <option value="V_JUDGE">V_JUDGE</option>
-                                                    </select>
-
-                                                    {/* Problem Code Input */}
-                                                    <input
-                                                        type="text"
-                                                        value={problem.problemCode}
-                                                        onChange={(e) =>
-                                                            updateProblemField(problem.id, {
-                                                                problemCode: e.target.value,
-                                                                verifyStatus: "idle",
-                                                                verifiedId: null,
-                                                            })
-                                                        }
-                                                        onBlur={() =>
-                                                            verifyProblem(problem.id, problem.judgeType, problem.problemCode)
-                                                        }
-                                                        placeholder="e.g. 1030A"
-                                                        className={`px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition placeholder:text-gray-400 w-full font-mono ${problem.verifyStatus === "error"
-                                                                ? "border-red-400 bg-red-50"
-                                                                : problem.verifyStatus === "success"
-                                                                    ? "border-green-400 bg-green-50"
-                                                                    : "border-gray-300"
-                                                            }`}
-                                                    />
-
-                                                    {/* Alias */}
-                                                    <input
-                                                        type="text"
-                                                        value={problem.alias}
-                                                        onChange={(e) =>
-                                                            updateProblemField(problem.id, { alias: e.target.value })
-                                                        }
-                                                        placeholder="A"
-                                                        maxLength={5}
-                                                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition placeholder:text-gray-400 w-full text-center font-mono"
-                                                    />
-
-                                                    {/* Weight */}
-                                                    <input
-                                                        type="number"
-                                                        min={0}
-                                                        value={problem.weight}
-                                                        onChange={(e) =>
-                                                            updateProblemField(problem.id, {
-                                                                weight: e.target.value === "" ? "" : Number(e.target.value),
-                                                            })
-                                                        }
-                                                        placeholder="1"
-                                                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition placeholder:text-gray-400 w-full text-center"
-                                                    />
-
-                                                    {/* Delete */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeProblem(problem.id)}
-                                                        className="flex items-center justify-center w-9 h-9 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer"
-                                                        title="Remove problem"
-                                                    >
-                                                        <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-
-                                                {/* Verification status feedback */}
-                                                {problem.verifyStatus === "loading" && (
-                                                    <p className="text-xs text-blue-500 mt-1 pl-1 flex items-center gap-1">
-                                                        <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                                                        Loading...
-                                                    </p>
-                                                )}
-                                                {problem.verifyStatus === "success" && (
-                                                    <p className="text-xs text-green-600 mt-1 pl-1">
-                                                        ✅ Verified (ID: {problem.verifiedId})
-                                                    </p>
-                                                )}
-                                                {problem.verifyStatus === "error" && (
-                                                    <p className="text-xs text-red-500 mt-1 pl-1">
-                                                        ⚠️ Invalid Judge or Problem Code
-                                                    </p>
-                                                )}
+                                    ) : (
+                                        <>
+                                            {/* Table Headers */}
+                                            <div className="grid grid-cols-[110px_1fr_65px_65px_36px] gap-2 px-1">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Judge</span>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Problem Code</span>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Alias</span>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Weight</span>
+                                                <span />
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
+
+                                            {/* Rows */}
+                                            {problems.map((problem) => (
+                                                <div key={problem.id} className="space-y-1.5 animate-in fade-in duration-150">
+                                                    <div className="grid grid-cols-[110px_1fr_65px_65px_36px] gap-2 items-center">
+                                                        <select
+                                                            value={problem.judgeType}
+                                                            onChange={(e) => {
+                                                                const newJudge = e.target.value as JudgeType;
+                                                                updateProblemField(problem.id, {
+                                                                    judgeType: newJudge,
+                                                                    verifyStatus: "idle",
+                                                                    verifiedId: null,
+                                                                });
+                                                                if (problem.problemCode.trim()) {
+                                                                    verifyProblem(problem.id, newJudge, problem.problemCode);
+                                                                }
+                                                            }}
+                                                            className="px-2 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50/50 font-medium text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20"
+                                                        >
+                                                            <option value="CODEFORCES">CODEFORCES</option>
+                                                            <option value="SCES">SCES</option>
+                                                            <option value="V_JUDGE">V_JUDGE</option>
+                                                        </select>
+
+                                                        <input
+                                                            type="text"
+                                                            value={problem.problemCode}
+                                                            onChange={(e) =>
+                                                                updateProblemField(problem.id, {
+                                                                    problemCode: e.target.value,
+                                                                    verifyStatus: "idle",
+                                                                    verifiedId: null,
+                                                                })
+                                                            }
+                                                            onBlur={() =>
+                                                                verifyProblem(problem.id, problem.judgeType, problem.problemCode)
+                                                            }
+                                                            placeholder="e.g. 1030A"
+                                                            className={`px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20 transition font-mono ${
+                                                                problem.verifyStatus === "error"
+                                                                    ? "border-red-200 bg-red-50/50 text-red-700"
+                                                                    : problem.verifyStatus === "success"
+                                                                    ? "border-green-200 bg-green-50/50 text-green-700"
+                                                                    : "border-gray-200 bg-gray-50/50"
+                                                            }`}
+                                                        />
+
+                                                        <input
+                                                            type="text"
+                                                            value={problem.alias}
+                                                            onChange={(e) => updateProblemField(problem.id, { alias: e.target.value })}
+                                                            placeholder="A"
+                                                            maxLength={5}
+                                                            className="px-2 py-2 border border-gray-200 bg-gray-50/50 rounded-xl text-xs text-center font-mono focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20"
+                                                        />
+
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            value={problem.weight}
+                                                            onChange={(e) =>
+                                                                updateProblemField(problem.id, {
+                                                                    weight: e.target.value === "" ? "" : Number(e.target.value),
+                                                                })
+                                                            }
+                                                            placeholder="1"
+                                                            className="px-2 py-2 border border-gray-200 bg-gray-50/50 rounded-xl text-xs text-center font-medium focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20"
+                                                        />
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeProblem(problem.id)}
+                                                            className="flex items-center justify-center w-8 h-8 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer"
+                                                        >
+                                                            <FontAwesomeIcon icon={faTrash} className="w-3" />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Clean Inline Badges for Verification Status */}
+                                                    {problem.verifyStatus === "loading" && (
+                                                        <div className="text-[11px] text-blue-500 pl-1 flex items-center gap-1.5 font-medium">
+                                                            <span className="inline-block w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                                            Checking backend...
+                                                        </div>
+                                                    )}
+                                                    {problem.verifyStatus === "success" && (
+                                                        <div className="text-[11px] text-green-600 pl-1 font-medium flex items-center gap-1">
+                                                            <span>• Verified (ID: {problem.verifiedId})</span>
+                                                        </div>
+                                                    )}
+                                                    {problem.verifyStatus === "error" && (
+                                                        <div className="text-[11px] text-red-500 pl-1 font-medium flex items-center gap-1">
+                                                            <span>• Invalid Judge or Code</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </>
+                                    )}
+                                </div>
                             </div>
+
                         </div>
 
-                        {/* ── Footer ─────────────────────────────────────────── */}
-                        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+                        {/* Footer */}
+                        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-50 bg-gray-50/30 rounded-b-2xl">
                             <button
                                 type="button"
                                 onClick={onClose}
                                 disabled={isSubmitting}
-                                className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 transition cursor-pointer"
+                                className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition cursor-pointer"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={isSubmitting || hasInvalidProblem}
-                                title={hasInvalidProblem ? "Verify all problems before saving" : undefined}
-                                className="px-6 py-2.5 text-sm font-medium text-white bg-[#1b4583] hover:bg-[#163a6e] rounded-lg transition cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-5 py-2 text-sm font-semibold text-white bg-[#1b4-[#1b4583] bg-[#1b4583] hover:bg-[#153769] rounded-xl transition cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                                {isSubmitting ? "Saving..." : "Save Changes"}
+                                {isSubmitting ? "Saving changes..." : "Save Changes"}
                             </button>
                         </div>
                     </form>

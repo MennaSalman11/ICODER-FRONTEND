@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useSession } from "next-auth/react";
 
 import {
     faArrowLeft,
@@ -28,7 +29,7 @@ interface ContestHeaderProps {
     };
     onDelete?: () => Promise<void>;
     onEditClick?: () => void;
-    
+
 }
 
 
@@ -56,6 +57,14 @@ export default function ContestHeader({ contest, onDelete, onEditClick }: Contes
     const [timeLeft, setTimeLeft] = useState("");
     const [progress, setProgress] = useState(0);
     const [contestStatus, setContestStatus] = useState<"Running" | "Scheduled" | "Ended">("Scheduled");
+    const { data: session } = useSession();
+    const [isOwner, setIsOwner] = useState(false);
+    //check if the user is the owner of the contest
+    useEffect(() => {
+        if (session) {
+            setIsOwner(session.user.numericId === contest.owner_id);
+        }
+    }, [session, contest.owner_id]);
 
     const start = useMemo(() => new Date(contest.begin_time).getTime(), [contest.begin_time]);
     const end = useMemo(() => new Date(contest.end_time).getTime(), [contest.end_time]);
@@ -136,6 +145,13 @@ export default function ContestHeader({ contest, onDelete, onEditClick }: Contes
 
                 {/* ── Status badge + creator line ─────────────────────────── */}
                 <div className="flex items-center gap-2 mb-2 text-sm text-gray-500">
+                    <button
+                        onClick={() => router.back()}
+                        className="mt-1 p-1.5 hover:bg-gray-100 rounded-full text-gray-400 transition-colors cursor-pointer shrink-0"
+                    >
+                        <FontAwesomeIcon icon={faArrowLeft} className="text-sm" />
+                    </button>
+
                     <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusStyles[contestStatus]}`}
                     >
@@ -149,12 +165,7 @@ export default function ContestHeader({ contest, onDelete, onEditClick }: Contes
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
                         {/* Back button */}
-                        <button
-                            onClick={() => router.back()}
-                            className="mt-1 p-1.5 hover:bg-gray-100 rounded-full text-gray-400 transition-colors cursor-pointer shrink-0"
-                        >
-                            <FontAwesomeIcon icon={faArrowLeft} className="text-sm" />
-                        </button>
+
 
                         <div className="min-w-0">
                             <h1 className="text-2xl font-bold text-gray-900 leading-tight truncate">
@@ -178,24 +189,26 @@ export default function ContestHeader({ contest, onDelete, onEditClick }: Contes
                     </div>
 
                     {/* ── Action buttons ───────────────────────────────────── */}
-                    
-                    <div className="flex items-center gap-1 shrink-0 mt-1">
-                        <button
-                            onClick={onEditClick}
-                            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
-                            title="Edit contest"
-                        >
-                            <FontAwesomeIcon icon={faPenToSquare} className="text-sm" />
-                        </button>
-                        <button
-                            onClick={onDelete}
-                            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                            title="Delete contest"
-                        >
-                            <FontAwesomeIcon icon={faTrash} className="text-sm" />
-                        </button>
-                    </div>
-                   
+
+                    {isOwner && (
+                        <div className="flex items-center gap-1 shrink-0 mt-1">
+                            <button
+                                onClick={onEditClick}
+                                className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                                title="Edit contest"
+                            >
+                                <FontAwesomeIcon icon={faPenToSquare} className="text-sm" />
+                            </button>
+                            <button
+                                onClick={onDelete}
+                                className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                                title="Delete contest"
+                            >
+                                <FontAwesomeIcon icon={faTrash} className="text-sm" />
+                            </button>
+                        </div>
+                    )}
+
                 </div>
 
                 {/* ── Progress bar ─────────────────────────────────────────── */}

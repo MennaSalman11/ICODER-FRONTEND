@@ -154,7 +154,7 @@ const handleJoinSubmit = async (e: React.FormEvent) => {
         router.push(targetUrl);
     } catch (err: any) {
         console.error("Join Error:", err);
-        setError(err.message || "Incorrect password or error joining contest");
+        setError(err.message.error || "Incorrect password or error joining contest");
     } finally {
         setIsJoining(false);
     }
