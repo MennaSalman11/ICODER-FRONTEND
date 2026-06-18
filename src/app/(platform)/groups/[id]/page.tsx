@@ -7,23 +7,12 @@ import GroupContestsTable from "./component/group-contests-table";
 import GroupMembersTable from "./component/group-members-table";
 import UpdateGroupModal from "./component/update-group-modal";
 import InviteMemberModal from "./component/invite-member-modal";
+import CreateContestModal from "./component/create-contest-modal";
 import { groupService } from "@/src/lib/services/group-service";
 import { GroupResponse, GroupMemberResponse } from "@/src/types/group";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-
-// ─── Mock Data (fallback for contests as no API yet) ────────────────────────────
-
-const mockContests = [
-    {
-        id: "dp-mastery",
-        title: "DP Mastery Contest",
-        beginTime: "3 years ago",
-        length: "0:00:01",
-        participantsCount: 13,
-    },
-];
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
@@ -36,6 +25,7 @@ export default function GroupPage() {
     const [isLeader, setIsLeader] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+    const [isContestModalOpen, setIsContestModalOpen] = useState(false);
     const [isJoining, setIsJoining] = useState(false);
     const { data: session } = useSession();
     const numericId = session?.user?.numericId;
@@ -164,7 +154,7 @@ export default function GroupPage() {
                                     contest_coordinator_type: group.contest_coordinator_type,
                                 }}
                                 members={members}
-                                onArrangeContest={() => console.log("Arrange Contest")}
+                                onArrangeContest={() => setIsContestModalOpen(true)}
                                 onUpdateGroup={() => setIsUpdateModalOpen(true)}
                                 onInviteMembers={() => setIsInviteModalOpen(true)}
                             />
@@ -172,10 +162,8 @@ export default function GroupPage() {
 
                         {/* Group Contests Table */}
                         <GroupContestsTable
-                            contests={mockContests}
-                            groupId={group.id.toString()}
-
-
+                            groupName={group.name}
+                            token={(session as any)?.accessToken}
                         />
 
                         {/* Group Members Table */}
@@ -251,6 +239,12 @@ export default function GroupPage() {
                 onClose={() => setIsInviteModalOpen(false)}
                 groupCode={group.code || "N/A"}
                 groupId={Number(group.id)}
+            />
+
+            {/* Create Contest Modal */}
+            <CreateContestModal
+                isOpen={isContestModalOpen}
+                onClose={() => setIsContestModalOpen(false)}
             />
         </div>
     );
