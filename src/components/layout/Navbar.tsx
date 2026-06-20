@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
 import { notificationService } from "../../lib/services/notification-service";
@@ -37,6 +37,7 @@ import { getProfile } from "@/src/lib/services/profile.services";
 function formatDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
+
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60_000);
   if (diffMins < 1) return "Just now";
@@ -244,7 +245,8 @@ const NotificationDropdown: React.FC = () => {
 const Navbar = () => {
   const { data: session, status } = useSession();
   const [userImage, setUserImage] = useState<string | null>(null);
-
+ const pathname = usePathname();
+  const isAuthPage = pathname === "/login" || pathname === "/register";
   useEffect(() => {
     const fetchUserImage = async () => {
       const handle = session?.user?.handle || session?.user?.name;
@@ -261,8 +263,11 @@ const Navbar = () => {
   }, [status, session]);
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 bg-white border-b border-slate-100">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+   <header className={`fixed top-0 left-0 w-full z-50 border-b transition-colors ${
+      isAuthPage 
+        ? "bg-transparent border-transparent"  // ← شفاف في اللوجن
+        : "bg-white border-slate-100"           // ← أبيض في باقي الصفحات
+    }`}>      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
 
         {/* Left Side: Logo & Main Nav */}
         <div className="flex items-center gap-10">
@@ -272,7 +277,9 @@ const Navbar = () => {
                {/* <div className="w-5 h-7 bg-[#1e3a8a] rounded-[2px] relative overflow-hidden">
                   <div className="absolute bottom-0 w-full h-1/2 bg-[#ef4444]"></div>
                </div> */}
-               <span className="text-2xl font-bold text-[#0f172a] tracking-tight">ICoder</span>
+<span className={`text-2xl font-bold tracking-tight ${
+  isAuthPage ? "text-white" : "text-[#0f172a]"
+}`}>ICoder</span>
             </div>
           </Link>
 
@@ -299,12 +306,16 @@ const Navbar = () => {
         <div className="flex items-center gap-3">
           {status === "unauthenticated" ? (
             <div className="flex items-center gap-2">
-              <Button asChild variant="ghost" className="text-slate-600 font-semibold">
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button asChild className="bg-[#1e3a8a] hover:bg-blue-800 text-white px-5 rounded-lg font-semibold shadow-sm">
-                <Link href="/register">Sign Up</Link>
-              </Button>
+            <Button asChild variant="ghost" className={isAuthPage ? "text-white font-semibold" : "text-slate-600 font-semibold"}>
+  <Link href="/login">Login</Link>
+</Button>
+
+<Button asChild className={isAuthPage 
+  ? "bg-orange-500 hover:bg-orange-600 text-white px-5 rounded-lg font-semibold" 
+  : "bg-[#1e3a8a] hover:bg-blue-800 text-white px-5 rounded-lg font-semibold shadow-sm"
+}>
+  <Link href="/register">Sign Up</Link>
+</Button>
             </div>
           ) : status === "authenticated" ? (
             <div className="flex items-center gap-4">

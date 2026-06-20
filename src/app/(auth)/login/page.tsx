@@ -59,7 +59,7 @@ export default function LoginPage() {
   }
 
   return (
-<section className="relative py-6 bg-gradient-to-br from-[#1f263c] via-[#1d2c4a] to-black min-h-screen overflow-hidden">
+<section className="relative py-6 pt-22 bg-gradient-to-br from-[#1f263c] to-black min-h-screen overflow-hidden">
       {/* glow effect */}
       <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-blue-500 rounded-full blur-[180px] opacity-30 pointer-events-none"></div>
       <div className="absolute top-10 right-10 w-[700px] h-[700px] bg-blue-300 rounded-full blur-[160px] opacity-20 pointer-events-none"></div>

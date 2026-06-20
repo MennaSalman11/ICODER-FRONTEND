@@ -54,6 +54,8 @@ const FINAL_VERDICTS = [
 ];
 
 const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
+      const contestId = sessionStorage.getItem("activeContestId");
+
   const activeSubmissionId = useRef<number | null>(null);
   const eventSourceRef = useRef<(() => void) | null>(null);
 let globalActiveSubmissionId: number | null = null;
@@ -118,6 +120,7 @@ useEffect(() => {
   eventSourceRef.current = subscribeToSubmissionStream(
     tokenString,
     (data) => {
+      
       const receivedId = Number(
         data.id ?? data.submissionId ?? data.submission_id
       );
@@ -131,7 +134,7 @@ useEffect(() => {
       }
 
 const activeId = globalActiveSubmissionId;
-
+// const activeId = activeSubmissionId.current;
 if (activeId !== null && receivedId !== activeId) {
   console.log("⏭️ Ignored submission stream for other ID");
   return;
@@ -142,7 +145,7 @@ if (activeId !== null && receivedId !== activeId) {
       }
 
       console.log("✅ passed filter");
-
+ console.log("FULL SSE DATA =", data);
       const verdict = (data.verdict || "PENDING").toUpperCase();
       console.log("✅ verdict received from SSE:", verdict);
 
@@ -319,10 +322,7 @@ case "PENDING":
         online_judge: ((params?.judge as string) || data.online_judge).toUpperCase(),
         opened: data.opened,
         submission_method: data.submission_method,
-        contest_id:
-          data.contest_id && Number(data.contest_id) !== 0
-            ? Number(data.contest_id)
-            : null,
+        contest_id: null,
       };
 
       const response = await submitCodeSolution(payload);
@@ -404,7 +404,13 @@ sessionStorage.setItem("activeSubmissionId", String(response.id));
       toast.error("Failed to disconnect account", { id: toastId });
     }
   };
+useEffect(() => {
+    const contestId = sessionStorage.getItem("activeContestId");
 
+    if (contestId) {
+        console.log("تم قراءة الـ ID بنجاح من الـ Session:", contestId);
+    }
+}, []);
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="w-full text-left bg-white">

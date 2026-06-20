@@ -69,7 +69,6 @@ export default function ProblemsTable({ problems, beginTime, endTime }: Problems
     }, [beginTime, endTime]);
 
     console.log(problems);
-
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden w-full">
             {/* ── Table header bar ─────────────────────────────────────────── */}
