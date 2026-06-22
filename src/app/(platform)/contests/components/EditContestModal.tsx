@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "sonner";
@@ -8,14 +8,14 @@ import { useSession } from "next-auth/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type JudgeType = "CODEFORCES" | "SCES" | "V_JUDGE";
+type JudgeType = "CODEFORCES" | "CSES" | "V_JUDGE";
 type VerifyStatus = "idle" | "loading" | "success" | "error";
 
 interface Problem {
     id: string;
     judgeType: JudgeType;
-    problemCode: string;       
-    verifiedId: number | null; 
+    problemCode: string;
+    verifiedId: number | null;
     verifyStatus: VerifyStatus;
     alias: string;
     weight: number | "";
@@ -37,7 +37,7 @@ interface EditContestModalProps {
     onClose: () => void;
     initialData: any;
     onSave: (payload: any) => Promise<void>;
-    problems?: any[]; 
+    problems?: any[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -45,17 +45,18 @@ interface EditContestModalProps {
 const generateId = () => Math.random().toString(36).slice(2, 9);
 const PROBLEMS_API_BASE = "http://localhost:9090/api/v1/problems";
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
-export default function EditContestModal({ 
-    isOpen, 
-    onClose, 
-    initialData, 
-    onSave, 
-    problems: incomingProblems 
+export default function EditContestModal({
+    isOpen,
+    onClose,
+    initialData,
+    onSave,
+    problems: incomingProblems
 }: EditContestModalProps) {
     const { data: session } = useSession();
     const token = (session as any)?.accessToken as string | undefined;
+
+    // مرجع لحفظ حالة التحميل السابقة للمسائل لمنع إعادة الـ verification للمسائل القادمة بالفعل
+    const isSeededRef = useRef(false);
 
     const [formData, setFormData] = useState<ContestFormData>({
         title: "",
@@ -78,6 +79,12 @@ export default function EditContestModal({
 
     // ── Problem set helpers ───────────────────────────────────────────────────
 
+    const updateProblemField = useCallback((id: string, updates: Partial<Omit<Problem, "id">>) => {
+        setProblems((prev) =>
+            prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+        );
+    }, []);
+
     const addProblem = () => {
         setProblems((prev) => [
             ...prev,
@@ -93,12 +100,6 @@ export default function EditContestModal({
         ]);
     };
 
-    const updateProblemField = (id: string, updates: Partial<Omit<Problem, "id">>) => {
-        setProblems((prev) =>
-            prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-        );
-    };
-
     const removeProblem = (id: string) => {
         setProblems((prev) => prev.filter((p) => p.id !== id));
     };
@@ -107,7 +108,7 @@ export default function EditContestModal({
 
     const verifyProblem = useCallback(async (id: string, judgeType: JudgeType, problemCode: string) => {
         const code = problemCode.trim();
-        if (!code) return; 
+        if (!code) return;
 
         updateProblemField(id, { verifyStatus: "loading", verifiedId: null });
 
@@ -125,7 +126,7 @@ export default function EditContestModal({
             }
 
             const data = await response.json();
-            const resolvedId = data?.problem_id ?? data?.id ?? null;
+            const resolvedId = data?.problem_id ?? data?.id;
 
             if (resolvedId === null) throw new Error("problem_id missing in response");
 
@@ -136,21 +137,28 @@ export default function EditContestModal({
         } catch {
             updateProblemField(id, { verifyStatus: "error", verifiedId: null });
         }
-    }, [token]);
+    }, [token, updateProblemField]);
+
+    // ── Reset Seed flag when modal closes ─────────────────────────────────────
+    useEffect(() => {
+        if (!isOpen) {
+            isSeededRef.current = false;
+        }
+    }, [isOpen]);
 
     // ── Seed form from initialData ───────────────────────────────────────────
 
     useEffect(() => {
-        if (isOpen && initialData) {
+        if (isOpen && initialData && !isSeededRef.current) {
             let localISOTime = "";
             const rawDate = initialData.begin_time || initialData.beginTime;
             if (rawDate) {
                 const d = new Date(rawDate);
                 if (!isNaN(d.getTime())) {
-                    localISOTime = d.getFullYear() + "-" + 
-                        String(d.getMonth() + 1).padStart(2, "0") + "-" + 
-                        String(d.getDate()).padStart(2, "0") + "T" + 
-                        String(d.getHours()).padStart(2, "0") + ":" + 
+                    localISOTime = d.getFullYear() + "-" +
+                        String(d.getMonth() + 1).padStart(2, "0") + "-" +
+                        String(d.getDate()).padStart(2, "0") + "T" +
+                        String(d.getHours()).padStart(2, "0") + ":" +
                         String(d.getMinutes()).padStart(2, "0");
                 }
             }
@@ -172,7 +180,9 @@ export default function EditContestModal({
                     const rawJudge = p.judge_type || p.judgeType || "CODEFORCES";
                     const judgeType = (typeof rawJudge === "string" ? rawJudge.toUpperCase() : "CODEFORCES") as JudgeType;
                     const problemCode = p.problem_code || p.problemCode || "";
+                    const problemId = p.problem_id ?? p.problemId ?? p.id ?? p.problem?.id ?? p.problem?.problem_id ?? null;
 
+                    // استدعاء الـ verification للمسائل المخزنة مسبقاً بطريقة آمنة
                     if (problemCode.trim()) {
                         setTimeout(() => {
                             verifyProblem(id, judgeType, problemCode);
@@ -183,14 +193,16 @@ export default function EditContestModal({
                         id,
                         judgeType,
                         problemCode,
-                        verifiedId: p.problem_id ?? p.problemId ?? p.id ?? null,
-                        verifyStatus: "loading" as VerifyStatus, 
+                        verifiedId: problemId ? Number(problemId) : null,
+                        verifyStatus: "loading" as VerifyStatus,
                         alias: p.problem_alias || p.alias || "",
                         weight: p.problem_weight ?? p.weight ?? "",
                     };
                 });
                 setProblems(mapped);
             }
+            // نضع العلامة بـ true لضمان عدم تنفيذ الـ Effect مرة أخرى أثناء فتح المودال
+            isSeededRef.current = true;
         }
     }, [isOpen, initialData, incomingProblems, verifyProblem]);
 
@@ -232,7 +244,14 @@ export default function EditContestModal({
         const rawLength = formData.length.trim();
         const lengthFormatted = rawLength.split(":").length === 2 ? `${rawLength}:00` : rawLength;
 
+        const contestId = Number(
+            initialData?.id ??
+            initialData?.contest_id ??
+            initialData?.contestId
+        );
+
         const payload = {
+
             title: formData.title.trim(),
             description: formData.description.trim(),
             begin_time: beginTimeISO,
@@ -246,7 +265,10 @@ export default function EditContestModal({
 
         setIsSubmitting(true);
         try {
+            console.log("contestId", contestId);
+            console.log("payload", payload);
             await onSave(payload);
+
             toast.success("Contest updated successfully!");
             onClose();
         } catch (error: any) {
@@ -263,7 +285,6 @@ export default function EditContestModal({
         (p) => p.verifyStatus === "error" || (p.problemCode.trim() && p.verifyStatus === "idle")
     );
 
-    // 🎨 تحسين الاستايلات لتكون أنعم ومريحة للعين (Soft borders, subtle shadow, clean text)
     const inputCls =
         "w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20 focus:border-[#1b4583] transition-all bg-gray-50/50 focus:bg-white placeholder:text-gray-400 font-medium text-gray-800";
     const selectCls =
@@ -300,10 +321,9 @@ export default function EditContestModal({
 
                     {/* Body */}
                     <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-                        {/* 2-Column Responsive Grid to Avoid Scrolling */}
                         <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-                            
-                            {/* Left Column: Contest Info (5 Cols) */}
+
+                            {/* Left Column: Contest Info */}
                             <div className="md:col-span-5 space-y-4">
                                 <div>
                                     <label className={labelCls}>Title</label>
@@ -389,7 +409,7 @@ export default function EditContestModal({
                                 )}
                             </div>
 
-                            {/* Right Column: Problem Set (7 Cols) */}
+                            {/* Right Column: Problem Set */}
                             <div className="md:col-span-7 border-l border-gray-100 pl-0 md:pl-8 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -406,7 +426,6 @@ export default function EditContestModal({
                                     </button>
                                 </div>
 
-                                {/* Problem Row List container */}
                                 <div className="max-h-[280px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
                                     {problems.length === 0 ? (
                                         <div className="text-center py-10 border border-dashed border-gray-200 rounded-2xl bg-gray-50/30">
@@ -416,7 +435,6 @@ export default function EditContestModal({
                                         </div>
                                     ) : (
                                         <>
-                                            {/* Table Headers */}
                                             <div className="grid grid-cols-[110px_1fr_65px_65px_36px] gap-2 px-1">
                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Judge</span>
                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Problem Code</span>
@@ -425,7 +443,6 @@ export default function EditContestModal({
                                                 <span />
                                             </div>
 
-                                            {/* Rows */}
                                             {problems.map((problem) => (
                                                 <div key={problem.id} className="space-y-1.5 animate-in fade-in duration-150">
                                                     <div className="grid grid-cols-[110px_1fr_65px_65px_36px] gap-2 items-center">
@@ -445,7 +462,7 @@ export default function EditContestModal({
                                                             className="px-2 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50/50 font-medium text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20"
                                                         >
                                                             <option value="CODEFORCES">CODEFORCES</option>
-                                                            <option value="SCES">SCES</option>
+                                                            <option value="CSES">CSES</option>
                                                             <option value="V_JUDGE">V_JUDGE</option>
                                                         </select>
 
@@ -463,13 +480,12 @@ export default function EditContestModal({
                                                                 verifyProblem(problem.id, problem.judgeType, problem.problemCode)
                                                             }
                                                             placeholder="e.g. 1030A"
-                                                            className={`px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20 transition font-mono ${
-                                                                problem.verifyStatus === "error"
-                                                                    ? "border-red-200 bg-red-50/50 text-red-700"
-                                                                    : problem.verifyStatus === "success"
+                                                            className={`px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#1b4583]/20 transition font-mono ${problem.verifyStatus === "error"
+                                                                ? "border-red-200 bg-red-50/50 text-red-700"
+                                                                : problem.verifyStatus === "success"
                                                                     ? "border-green-200 bg-green-50/50 text-green-700"
                                                                     : "border-gray-200 bg-gray-50/50"
-                                                            }`}
+                                                                }`}
                                                         />
 
                                                         <input
@@ -503,7 +519,6 @@ export default function EditContestModal({
                                                         </button>
                                                     </div>
 
-                                                    {/* Clean Inline Badges for Verification Status */}
                                                     {problem.verifyStatus === "loading" && (
                                                         <div className="text-[11px] text-blue-500 pl-1 flex items-center gap-1.5 font-medium">
                                                             <span className="inline-block w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
@@ -542,7 +557,7 @@ export default function EditContestModal({
                             <button
                                 type="submit"
                                 disabled={isSubmitting || hasInvalidProblem}
-                                className="px-5 py-2 text-sm font-semibold text-white bg-[#1b4-[#1b4583] bg-[#1b4583] hover:bg-[#153769] rounded-xl transition cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="px-5 py-2 text-sm font-semibold text-white bg-[#1b4583] hover:bg-[#153769] rounded-xl transition cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {isSubmitting ? "Saving changes..." : "Save Changes"}
                             </button>

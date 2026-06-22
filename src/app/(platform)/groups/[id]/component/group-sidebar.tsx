@@ -68,7 +68,7 @@ const GroupSidebar = ({ group }: GroupSidebarProps) => {
     }, [group.id]);
 
     return (
-        <div className="w-full   md:w-[240px] shrink-0 flex flex-col gap-0">
+        <div className="w-full   md:w-[240px] shrink-0 flex flex-col gap-0 self-start h-fit">
             {/* Back to Groups */}
             <Link
                 href="/groups"

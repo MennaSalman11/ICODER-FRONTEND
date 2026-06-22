@@ -102,6 +102,7 @@ export default function ContestCard({ contest }: { contest: Contest }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [password, setPassword] = useState("");
     const [isJoining, setIsJoining] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // Added for pre-navigation check
     const [error, setError] = useState("");
     const [targetUrl, setTargetUrl] = useState("");
 
@@ -115,50 +116,72 @@ export default function ContestCard({ contest }: { contest: Contest }) {
     );
 
     // ── Handler for Navigation ────────────────────────────────────────────────
-   // ── Handler for Navigation ────────────────────────────────────────────────
-const handleNavigate = (queryString: string = "") => {
-    const isOpennessProtected = contest.openness?.toUpperCase() === "PROTECTED";
+    const handleNavigate = async (queryString: string = "") => {
+        if (isLoading) return;
 
-    // دائماً المسار الموحد، الـ Backend هو المسؤول عن السماح بالدخول
-    const finalPath = `/contests/${contest.id}${queryString}`;
+        const isOpennessProtected = contest.openness?.toUpperCase() === "PROTECTED";
+        const finalPath = `/contests/${contest.id}${queryString}`;
 
-    // إذا كانت المسابقة محمية والمستخدم لم يقم بعمل Join مسبقاً، نفتح المودال
-    if (isOpennessProtected && !contest.solved) {
-        setTargetUrl(finalPath);
-        setIsModalOpen(true);
+        // 1. Check if the contest is NOT protected
+        if (!isOpennessProtected) {
+            router.push(finalPath);
+            return;
+        }
+
+        // 2. If the contest IS protected
+        setIsLoading(true);
         setError("");
-        setPassword("");
-    } else {
-        // إذا كانت عامة، أو محمية وقد تم الانضمام لها، نتجه للمسار مباشرة
-        router.push(finalPath);
-    }
-};
 
-// ── Handler for joining protected contest ────────────────────────────────
-const handleJoinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!password.trim()) {
-        setError("Password is required");
-        return;
-    }
+        try {
+            const userId = (session as any)?.user?.numericId;
+            const groupId = contest.group_id;
 
-    setIsJoining(true);
-    setError("");
+            // Optional: If we don't have session or groupId, we might fallback to modal anyway
+            if (!userId || !groupId) {
+                throw new Error("Missing user or group context");
+            }
 
-    try {
-        // نرسل الباسوورد للـ API
-        await ContestService.joinProtectedContest(contest.id, password, token);
+            // Verify if user already has access
+            await ContestService.getProtectedContests(userId, groupId, token);
 
-        // عند النجاح، نغلق المودال ونتوجه للمسار الموحد
-        setIsModalOpen(false);
-        router.push(targetUrl);
-    } catch (err: any) {
-        console.error("Join Error:", err);
-        setError(err.message.error || "Incorrect password or error joining contest");
-    } finally {
-        setIsJoining(false);
-    }
-};
+            // API Success: Navigate directly
+            router.push(finalPath);
+        } catch (err: any) {
+            // API Failure: User needs to enter password
+            setTargetUrl(finalPath);
+            setIsModalOpen(true);
+            setError("");
+            setPassword("");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // ── Handler for joining protected contest ────────────────────────────────
+    const handleJoinSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!password.trim()) {
+            setError("Password is required");
+            return;
+        }
+
+        setIsJoining(true);
+        setError("");
+
+        try {
+            // نرسل الباسوورد للـ API
+            await ContestService.joinProtectedContest(contest.id, password, token);
+
+            // عند النجاح، نغلق المودال ونتوجه للمسار الموحد
+            setIsModalOpen(false);
+            router.push(targetUrl);
+        } catch (err: any) {
+            console.error("Join Error:", err);
+            setError(err.message?.error || "Incorrect password or error joining contest");
+        } finally {
+            setIsJoining(false);
+        }
+    };
 
     const borderColorCls =
         status === "running" ? "border-l-orange-500" :
@@ -180,19 +203,22 @@ const handleJoinSubmit = async (e: React.FormEvent) => {
                     <div className="flex items-center gap-2.5 mb-1">
                         <StatusBadge status={status} />
                         <h3
-                            className="text-[15px] font-bold text-[#1b3f82] truncate cursor-pointer hover:underline"
+                            className={`text-[15px] font-bold text-[#1b3f82] truncate cursor-pointer hover:underline transition-opacity ${isLoading ? "opacity-60 pointer-events-none" : ""}`}
                             onClick={() => handleNavigate("")}
                         >
+                            {isLoading && (
+                                <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-2 align-middle" />
+                            )}
                             {contest.title}
                         </h3>
                     </div>
 
                     {/* Row 2: type + openness badges */}
                     <div className="flex items-center gap-3 mt-0.5">
-                        <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                        {/* <span className="inline-flex items-center gap-1 text-xs text-gray-400">
                             <FontAwesomeIcon icon={typeIcon[contest.contest_type?.toUpperCase()] ?? faLayerGroup} className="text-[11px]" />
                             {contest.contest_type}
-                        </span>
+                        </span> */}
                         <span className="inline-flex items-center gap-1 text-xs text-gray-400">
                             <FontAwesomeIcon icon={opennessIcon[contest.openness?.toUpperCase()] ?? faGlobe} className="text-[11px]" />
                             {contest.openness}
@@ -201,10 +227,10 @@ const handleJoinSubmit = async (e: React.FormEvent) => {
                 </div>
 
                 {/* ── Meta: creator ────────────────────────────────────────────── */}
-                <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 whitespace-nowrap shrink-0 w-36">
+                {/* <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 whitespace-nowrap shrink-0 w-36">
                     <FontAwesomeIcon icon={faUser} className="text-gray-300 text-xs" />
                     <span>{contest.owner_handle || "—"}</span>
-                </div>
+                </div> */}
 
                 {/* ── Meta: group ──────────────────────────────────────────────── */}
                 <div className="hidden md:flex items-center gap-1.5 text-sm text-gray-500 whitespace-nowrap shrink-0 w-40">
@@ -223,17 +249,28 @@ const handleJoinSubmit = async (e: React.FormEvent) => {
                     {status === "running" && (
                         <button
                             onClick={() => handleNavigate("")}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1b3f82] hover:bg-[#152f61] rounded-lg shadow-sm transition-colors cursor-pointer"
+                            disabled={isLoading}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#1b3f82] hover:bg-[#152f61] rounded-lg shadow-sm transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            View Contest
-                            <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
+                            {isLoading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Checking...
+                                </>
+                            ) : (
+                                <>
+                                    View Contest
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
+                                </>
+                            )}
                         </button>
                     )}
 
                     {status === "ended" && (
                         <button
                             onClick={() => handleNavigate("?tab=rank")}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#1b3f82] bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg transition-colors cursor-pointer"
+                            disabled={isLoading}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#1b3f82] bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             View Standings
                             <FontAwesomeIcon icon={faChartBar} className="text-xs" />

@@ -12,7 +12,7 @@ import { group } from "console";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type JudgeType = "CODEFORCES" | "SCES" | "V_JUDGE";
+type JudgeType = "CODEFORCES" | "CSES" | "V_JUDGE";
 type VerifyStatus = "idle" | "loading" | "success" | "error";
 
 /** Local UI row — maps to ProblemSetItem on submit */
@@ -440,7 +440,7 @@ const CreateContestModal = ({ isOpen, onClose, onSuccess }: CreateContestModalPr
                                                         className="px-2 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition bg-white text-gray-700 cursor-pointer w-full"
                                                     >
                                                         <option value="CODEFORCES">CODEFORCES</option>
-                                                        <option value="SCES">SCES</option>
+                                                        <option value="CSES">CSES</option>
                                                         <option value="V_JUDGE">V_JUDGE</option>
                                                     </select>
 

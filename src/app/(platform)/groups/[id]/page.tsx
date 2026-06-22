@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import GroupSidebar from "./component/group-sidebar";
 import GroupActionButtons from "./component/group-action-buttons";
 import GroupContestsTable from "./component/group-contests-table";
+import GroupMeetingsTable from "./component/group-meetings-table";
 import GroupMembersTable from "./component/group-members-table";
 import UpdateGroupModal from "./component/update-group-modal";
 import InviteMemberModal from "./component/invite-member-modal";
@@ -81,9 +82,10 @@ export default function GroupPage() {
     return (
         <div className="min-h-screen bg-gray-50 ">
             <div className="max-w-7xl mx-auto pt-10">
-                <div className="flex flex-col md:flex-row gap-6  items-center justify-center ">
+                <div className="flex flex-col md:flex-row gap-6  items-center justify-center  ">
 
                     {/* ─── Left Sidebar ─── */}
+
                     <GroupSidebar group={{
                         id: group.id.toString(),
                         name: group.name,
@@ -165,6 +167,15 @@ export default function GroupPage() {
                             groupName={group.name}
                             token={(session as any)?.accessToken}
                         />
+
+                        {/* Group Meetings Table */}
+                        {isMember && (
+                            <GroupMeetingsTable
+                                groupId={id}
+                                groupName={group.name}
+                                token={(session as any)?.accessToken}
+                            />
+                        )}
 
                         {/* Group Members Table */}
                         <GroupMembersTable

@@ -28,7 +28,7 @@ interface ProblemsTableProps {
     beginTime?: string;
     endTime?: string;
     contestId?: string;
-    contestOrigin?: string;
+
 }
 
 function getAlphaLabel(index: number): string {
@@ -42,7 +42,7 @@ function getAlphaLabel(index: number): string {
     return label;
 }
 
-export default function ProblemsTable({ problems, beginTime, endTime }: ProblemsTableProps) {
+export default function ProblemsTable({ problems, beginTime, endTime ,contestId}: ProblemsTableProps) {
     const [contestStatus, setContestStatus] = useState<"upcoming" | "running" | "ended">("upcoming");
 
     useEffect(() => {
@@ -112,7 +112,7 @@ export default function ProblemsTable({ problems, beginTime, endTime }: Problems
                                 const solvedCount = problem.solved_count ?? "—";
                                 const attemptCount = problem.attempted_count ?? "—";
 
-                                const featureProblemPath = `/problems/${problem.judge_type}/${problem.problem_code}`;
+                                const featureProblemPath = `/problems/${problem.judge_type}/${problem.problem_code}?contestId=${contestId}`;
 
                                 return (
                                     <tr 

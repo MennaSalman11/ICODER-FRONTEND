@@ -85,24 +85,24 @@ export const ContestService = {
   },
 
 
-async getContestById(id: number | string, token?: string) {
+  async getContestById(id: number | string, token?: string) {
     // دايماً المسار العادي، الـ Backend هو اللي هيتحقق من صلاحية الدخول
     const response = await fetch(`${API_BASE_URL}/${id}`, {
-        method: "GET",
-        headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        }
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
     });
 
     if (!response.ok) {
-        // ممكن نتحكم في رسالة الخطأ هنا لو حابة
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to fetch contest: ${response.status}`);
+      // ممكن نتحكم في رسالة الخطأ هنا لو حابة
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to fetch contest: ${response.status}`);
     }
-    
+
     return response.json();
-},
+  },
   getContestProblems: async (contestId: string | number, token?: string) => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -193,7 +193,36 @@ async getContestById(id: number | string, token?: string) {
 
     // شوفي لو الـ Backend بيرجع رسالة نصية أو بيعمل return لـ JSON واقرأيه على أساسه
     // المعتاد في الـ POST لو مش برجع Object بيرجع text، فعملناه هنا text أضمن
-    return response.text(); 
+    return response.text();
+  },
+
+
+  getProtectedContests: async (
+    userId: number | string,
+    groupId: number | string,
+    token?: string
+  ): Promise<{ message: string }> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // استخدام الـ API_BASE_URL لتصبح /api/v1/contests/protected/{userId}/{groupId}
+    const response = await fetch(`${API_BASE_URL}/protected/${userId}/${groupId}`, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch protected contests: ${response.status} - ${errorText}`);
+    }
+
+    return response.json(); // بترجع الـ JSON المتوقع { "message": "string" }
   }
-  
+
+
 };
