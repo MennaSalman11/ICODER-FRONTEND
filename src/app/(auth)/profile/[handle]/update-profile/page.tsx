@@ -5,7 +5,8 @@ import { updateGeneralSettingsData } from "@/src/lib/services/general-settings.s
 import {
   getProfile,
   getProfilePicture,
-} from "@/src/lib/services/profile.services";import { GeneralSettingsPayload, GeneralSettingsSchema } from "@/src/schema/genaralSettings.schema";
+} from "@/src/lib/services/profile.services";
+import { GeneralSettingsPayload, GeneralSettingsSchema } from "@/src/schema/generalSettings.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
