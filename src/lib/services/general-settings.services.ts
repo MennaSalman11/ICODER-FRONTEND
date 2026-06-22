@@ -1,4 +1,4 @@
-import { GeneralSettingsPayload } from "@/src/schema/genaralSettings.schema";
+import { GeneralSettingsPayload } from "@/src/schema/generalSettings.schema";
 import { getUserToken } from "../server-utils";
 
 export async function updateGeneralSettingsData(data : GeneralSettingsPayload) {

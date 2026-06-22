@@ -104,7 +104,7 @@ declare module "next-auth" {
       nickname?: string;
       numericId?: string;
       accessToken?: string;
-    } & DefaultSession["user"]; // دمج مع التعريف الأساسي
+    } & DefaultSession["user"]; 
     accessToken?: string;
     
   }

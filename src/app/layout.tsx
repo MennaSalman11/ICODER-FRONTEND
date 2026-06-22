@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { Navbar } from "../components/layout/Navbar";
 import Providers from "../types/Providers";
 import { MathJaxContext } from "better-react-mathjax";
+import ConditionalNavbar from "../components/layout/ConditionalNavbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
