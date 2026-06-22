@@ -24,21 +24,46 @@ import { getUserToken } from "../server-utils";
 //     return { ok: false };
 //   }
 // }
-export async function updateProfilePicture(base64Image: string) {
+// export async function updateProfilePicture(base64Image: string) {
+//   try {
+//     const { token } = await getUserToken();
+//         const url = `http://localhost:9090/api/v1/users/profile-picture`;
+
+//     const res = await fetch(url, {
+//       method: 'PATCH',
+//       headers: {
+//         'Authorization': `Bearer ${token}`,
+//         'Content-Type': 'application/json'
+//       },
+//       body: JSON.stringify({
+//         file: base64Image
+//       })
+//     });
+
+//     const data = await res.json();
+//     return { ok: res.ok, data };
+//   } catch (error) {
+//     console.error(error);
+//     return { ok: false };
+//   }
+// }
+export async function updateProfilePicture(file: File) {
   try {
     const { token } = await getUserToken();
-        const url = `http://localhost:9090/api/v1/users/profile-picture`;
 
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        file: base64Image
-      })
-    });
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(
+      "http://localhost:9090/api/v1/users/profile-picture",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
 
     const data = await res.json();
     return { ok: res.ok, data };
@@ -47,7 +72,6 @@ export async function updateProfilePicture(base64Image: string) {
     return { ok: false };
   }
 }
-
 export async function deleteProfilePicture() {
   try {
     const { token } = await getUserToken();

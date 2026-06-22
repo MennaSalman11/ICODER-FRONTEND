@@ -3,6 +3,7 @@ import { z } from "zod";
 export const SecuritySchema = z.object({
     // schema change password
   current_password: z.string().min(1, "Current password is required"),
+  verify_password: z.string().optional(),
   new_password: z.string().min(8, "New password must be at least 8 characters").optional().or(z.literal('')),
   password_confirmation: z.string().optional().or(z.literal('')),
   

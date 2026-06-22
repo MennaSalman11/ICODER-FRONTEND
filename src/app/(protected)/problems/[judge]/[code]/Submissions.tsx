@@ -38,7 +38,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { useProblem } from "@/src/components/context/problemContext";
-
+import { useSearchParams } from "next/navigation";
 interface SubmitProblemProps {
   onSuccess?: () => void;
 }
@@ -54,8 +54,8 @@ const FINAL_VERDICTS = [
 ];
 
 const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
-      const contestId = sessionStorage.getItem("activeContestId");
-
+ const searchParams = useSearchParams();
+    const contestId = searchParams.get("contestId"); 
   const activeSubmissionId = useRef<number | null>(null);
   const eventSourceRef = useRef<(() => void) | null>(null);
 let globalActiveSubmissionId: number | null = null;
@@ -88,7 +88,7 @@ let globalActiveSubmissionId: number | null = null;
       opened: true,
       code: sourceCode || "",
       language: selectedLanguage || "",
-      contest_id: null,
+      contest_id: contestId || null,
     },
   });
 
@@ -322,7 +322,7 @@ case "PENDING":
         online_judge: ((params?.judge as string) || data.online_judge).toUpperCase(),
         opened: data.opened,
         submission_method: data.submission_method,
-        contest_id: null,
+        contest_id: contestId || null,
       };
 
       const response = await submitCodeSolution(payload);

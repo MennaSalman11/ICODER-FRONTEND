@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { SecurityPayload, SecuritySchema } from "@/src/schema/security.schema";
 import { updateEmail, updatePassword } from "@/src/lib/services/security-settings.services";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 // import { useRef } from "react";
 export default function SecurityPage() {
   const formRef = useRef<HTMLFormElement>(null);
@@ -14,63 +14,97 @@ export default function SecurityPage() {
 const handleReset = () => {
   formRef.current?.reset(); 
 };
-    const {register , handleSubmit, formState:{errors , isSubmitting}} = useForm<SecurityPayload>({
-      defaultValues:{
-        current_password: '',
-        new_password: '',
-        password_confirmation: '',
+const {
+  register,
+  handleSubmit,
+  reset,
+  formState: { errors, isSubmitting }
+} = useForm<SecurityPayload>({
+  defaultValues: {
+    current_password: "",
+    verify_password: "",
+    new_password: "",
+    password_confirmation: "",
+    new_email: "",
+  },
+  resolver: zodResolver(SecuritySchema),
+});
 
-        new_email: '',
-      } , 
-      resolver: zodResolver(SecuritySchema)
-    });
-  const onSubmit = async (values: SecurityPayload) => {
+useEffect(() => {
+  reset({
+    current_password: "",
+    verify_password: "",
+    new_password: "",
+    password_confirmation: "",
+    new_email: "",
+  });
+}, [reset]);
+const onSubmit = async (values: SecurityPayload) => {
   let passwordSuccess = true;
   let emailSuccess = true;
 
-  
+  // Change Password
   if (values.new_password) {
     const res = await updatePassword({
       current_password: values.current_password,
       new_password: values.new_password,
       password_confirmation: values.password_confirmation,
     });
+
     passwordSuccess = res.ok;
-    if (!res.ok) 
-      {
-        toast.error(res.data?.message || "Password update failed" ,{position:'top-right'})
-      } else {
-        toast.success("Password updated successfully!" ,{position:'top-right'})
+
+    if (!res.ok) {
+      toast.error(
+        res.data?.message || "Password update failed",
+        { position: "top-right" }
+      );
+    } else {
+      toast.success(
+        "Password updated successfully!",
+        { position: "top-right" }
+      );
+    }
   }
 
-
+  // Change Email
   if (values.new_email) {
+    console.log("new_email =", values.new_email);
+    console.log("verify_password =", values.verify_password);
+
     const res = await updateEmail({
       new_email: values.new_email,
-      current_password:  values.current_password
+      current_password: values.verify_password || "",
     });
-    emailSuccess = res.ok;
-    if (!res.ok) 
-    {
-      toast.error(res.data?.message || "Email update failed" ,{position:'top-right'});
-    }
-    else {
-      toast.success("Email update request sent! Please check your new email to confirm." ,{position:'top-right'});
-    }
- 
-  }
 
+    emailSuccess = res.ok;
+
+    if (!res.ok) {
+      toast.error(
+        res.data?.message || "Email update failed",
+        { position: "top-right" }
+      );
+    } else {
+      toast.success(
+        "Email update request sent! Please check your new email to confirm.",
+        { position: "top-right" }
+      );
+    }
+  }
 
   if (passwordSuccess && emailSuccess) {
     if (values.new_password || values.new_email) {
-       toast.success("Security settings updated successfully!");
+      toast.success(
+        "Security settings updated successfully!",
+        { position: "top-right" }
+      );
     } else {
-       toast.info("No changes were made.");
+      toast.info(
+        "No changes were made.",
+        { position: "top-right" }
+      );
     }
   }
 };
-
-  }
   return (
     <div className="space-y-10">
   <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
@@ -146,20 +180,20 @@ const handleReset = () => {
             <input 
             {...register('new_email')}
               type="email" 
-              placeholder="new-email@example.com"
-              className="w-full p-3 rounded-xl border border-gray-200 focus:border-orange-400 outline-none transition-all"
+autoComplete="new-email"
+  placeholder="new-email@example.com"              className="w-full p-3 rounded-xl border border-gray-200 focus:border-orange-400 outline-none transition-all"
             />
             {errors.new_email && <p className="text-red-500 text-xs mt-1">{errors.new_email.message}</p>}
           </div>
           <div>
             <label className="block text-sm font-bold text-blue-900 mb-2">Verify With Password</label>
             <input 
-            {...register('current_password')}
+            {...register('verify_password')}
               type="password" 
               placeholder="Enter Current Password"
               className="w-full p-3 rounded-xl border border-gray-200 focus:border-orange-400 outline-none transition-all"
             />
-            {errors.current_password && <p className="text-red-500 text-xs mt-1">{errors.current_password.message}</p>}
+            {errors.verify_password && <p className="text-red-500 text-xs mt-1">{errors.verify_password.message}</p>}
           </div>
         </div>
       </section>

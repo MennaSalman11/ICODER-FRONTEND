@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
@@ -330,6 +331,8 @@ function CodeExperience() {
 
 // ─── PROBLEMS ─────────────────────────────────────────────────────────────────
 function FeaturedProblems() {
+      const router = useRouter();
+
   return (
     <section className="py-24 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -364,7 +367,9 @@ function FeaturedProblems() {
                   Best time: <span className="text-slate-600 font-mono">{p.time}</span>
                 </div>
               </div>
-              <button className="w-full py-3 border-t border-slate-100 text-[#1e3a8a] hover:bg-blue-50 text-sm font-bold flex items-center justify-center gap-2 transition-all">
+              <button
+              onClick={() => router.push("/problems")}
+              className="w-full py-3 border-t border-slate-100 text-[#1e3a8a] hover:bg-blue-50 text-sm font-bold flex items-center justify-center gap-2 transition-all">
                 Solve Now {I.arrow}
               </button>
             </div>
@@ -450,6 +455,8 @@ function Roadmap() {
 
 // ─── CTA ─────────────────────────────────────────────────────────────────────
 function CTA() {
+    const router = useRouter();
+
   return (
     <section className="py-28 relative overflow-hidden" style={{background:"#0f172a"}}>
       <div className="absolute inset-0 dot-bg opacity-10"/>
@@ -465,11 +472,17 @@ function CTA() {
         <p className="text-slate-400 text-xl mb-10 leading-relaxed">
           Free forever. No setup. Just open iCoder and start solving.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
-          <button className="bg-orange-500 hover:bg-orange-600 text-white px-10 py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-xl shadow-orange-500/25">
+        <div 
+         className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+          <button 
+          onClick={() => router.push("/register")}
+          className="bg-orange-500 hover:bg-orange-600 text-white px-10 py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-xl shadow-orange-500/25">
             Create Free Account {I.arrow}
           </button>
-          <button className="border border-white/20 hover:border-white/40 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all hover:bg-white/5">
+          <button 
+          type="button"
+          onClick={() => router.push("/problems")}
+          className="border border-white/20 hover:border-white/40 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all hover:bg-white/5">
             Browse Problems
           </button>
         </div>

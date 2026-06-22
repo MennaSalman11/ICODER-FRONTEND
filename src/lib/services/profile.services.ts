@@ -1,5 +1,36 @@
-// "use server";
+"use server";
+import { getUserToken } from '@/src/lib/server-utils';
 
+export async function getProfilePicture(handle: string) {
+    const { token } = await getUserToken();
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/users/profile-picture?handle=${handle}`
+    ,{
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        }
+    }
+);
+
+    const data = await res.json();
+
+    console.log("picture data:", data);
+
+    return {
+      ok: res.ok,
+      data,
+    };
+  } catch (error) {
+    console.error(error);
+
+    return {
+      ok: false,
+      data: null,
+    };
+  }
+}
 export async function getProfile (handle: string){
     try {
        
@@ -27,3 +58,4 @@ export async function getProfile (handle: string){
         }
     }
 }
+

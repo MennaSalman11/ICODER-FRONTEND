@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react"; 
-import { getProfile } from "@/src/lib/services/profile.services";
+import { getProfile, getProfilePicture } from "@/src/lib/services/profile.services";
 
 // استيراد الخدمة الرئيسية المحدثة
 import { getRawStats } from "@/src/lib/services/SummaryAi.services"; 
@@ -49,10 +49,17 @@ export default function ProfilePage() {
   useEffect(() => {
     if (handleFromUrl) {
       const fetchProfile = async () => {
-        const res = await getProfile(handleFromUrl as string);
-        if (res.ok) {
-          setUserData(res.data);
-        }
+        const profileRes = await getProfile(handleFromUrl as string);
+const pictureRes = await getProfilePicture(handleFromUrl as string);
+
+     if (profileRes.ok) {
+      console.log("Profile:", profileRes.data);
+console.log("Picture:", pictureRes.data);
+  setUserData({
+    ...profileRes.data,
+    picture_url: pictureRes.data?.picture_url,
+  });
+}
       };
       fetchProfile();
     }
