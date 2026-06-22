@@ -59,8 +59,7 @@ const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
   const activeSubmissionId = useRef<number | null>(null);
   const eventSourceRef = useRef<(() => void) | null>(null);
 let globalActiveSubmissionId: number | null = null;
-  // الـ meta بيجي من الـ POST response ويتحفظ في ref
-  // عشان الـ SSE callback يقدر يوصله حتى بعد Fast Refresh
+ 
   const submissionMetaRef = useRef<{
     lang: string;
     submittedAt: string;
@@ -111,7 +110,7 @@ let globalActiveSubmissionId: number | null = null;
     submittedAt?: string;
   } | null>(null);
 
-// ─── فتح الـ SSE عند mount ────────────────────────────────────────────────
+// ─── SSE mount ────────────────────────────────────────────────
 useEffect(() => {
   const tokenString =
     (session?.accessToken as string) || (session?.user?.accessToken as string);
@@ -139,7 +138,6 @@ if (activeId !== null && receivedId !== activeId) {
   console.log("⏭️ Ignored submission stream for other ID");
   return;
 }
-      // sync الـ ref لو اتعمل remount وبقى null
       if (activeSubmissionId.current === null && activeId !== null) {
         activeSubmissionId.current = activeId;
       }

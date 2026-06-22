@@ -21,6 +21,7 @@ export default function SubmissionsTable({
   const getVerdictStyle = (v: string) => {
     const status = v.toLowerCase();
     if (status === 'accepted') return 'text-emerald-600 font-bold';
+     if (status.includes('wrong')) return 'text-red-400 font-bold';
     if (status.includes('runtime')) return 'text-orange-500 font-bold';
     if (status === 'failed') return 'text-red-500 font-bold';
     return 'text-gray-700';
@@ -65,12 +66,12 @@ export default function SubmissionsTable({
     <td className={`py-3 px-4 ${getVerdictStyle(sub.verdict)}`}>{sub.verdict}</td>
     <td className="py-3 px-4">{sub.language}</td>
     
-    {/* استخدام timeUsage الفعلي */}
+    
     <td className="py-3 px-4 text-gray-500">
       {sub.timeUsage} <span className="text-gray-400">ms</span>
     </td>
     
-    {/* استخدام submittedAt الفعلي */}
+    
    <td className="py-3 px-4 text-gray-500">
   {formatTimeAgo(sub.submittedAt)}
 </td>

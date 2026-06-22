@@ -176,12 +176,12 @@ function Hero() {
             </p>
 
             <div className="flex flex-wrap gap-3 mb-14">
-              <button className="bg-[#1e3a8a] hover:bg-blue-800 text-white px-7 py-3.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20">
+              <button
+              onClick={() => window.location.href = "/problems"}
+              className="bg-[#1e3a8a] hover:bg-blue-800 text-white px-7 py-3.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20">
                 Start Solving {I.arrow}
               </button>
-              <button className="border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 px-7 py-3.5 rounded-xl font-semibold flex items-center gap-2 transition-all hover:bg-slate-50">
-                {I.play} Watch Demo
-              </button>
+            
             </div>
 
             {/* stats */}
@@ -319,9 +319,7 @@ function CodeExperience() {
                 </li>
               ))}
             </ul>
-            <button className="bg-[#1e3a8a] hover:bg-blue-800 text-white px-7 py-3.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20">
-              Open the Editor {I.arrow}
-            </button>
+          
           </div>
         </div>
       </div>
@@ -416,7 +414,9 @@ function Leaderboard() {
           ))}
         </div>
         <div className="text-center mt-8">
-          <button className="border border-slate-200 hover:border-[#1e3a8a] text-slate-500 hover:text-[#1e3a8a] px-6 py-2.5 rounded-xl text-sm font-semibold transition-all">
+          <button
+          onClick={() => window.location.href = "contests"}
+          className="border border-slate-200 hover:border-[#1e3a8a] text-slate-500 hover:text-[#1e3a8a] px-6 py-2.5 rounded-xl text-sm font-semibold transition-all">
             See Full Rankings {I.arrow}
           </button>
         </div>
@@ -539,7 +539,7 @@ export default function HomePage() {
   return (
     <>
       <style>{STYLES}</style>
-      <main className="pt-16">
+      <main>
         <Hero />
         <WhyChoose />
         <CodeExperience />

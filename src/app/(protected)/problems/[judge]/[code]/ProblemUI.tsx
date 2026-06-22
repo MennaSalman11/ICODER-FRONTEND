@@ -220,40 +220,63 @@ useEffect(() => {
   };
 
   // ✨ التعديل وإضافة الحماية هنا لمنع الـ 500 Error عند تحميل الـ Template الافتراضي
+// useEffect(() => {
+//   // 1. إذا لم تكن المكونات جاهزة، لا تفعل شيئاً
+//   if (!isMounted || !selectedLanguage) return;
+
+//   const fetchTemplate = async () => {
+//     const langId = Number(selectedLanguage);
+//     const token = (session as any)?.accessToken;
+
+//     try {
+//       // 2. نحاول جلب التمبلت دائماً إذا كان لدينا token
+//       if (token) {
+//         const activeTemplate = await getActiveTemplateByLanguag(langId, token);
+//         if (activeTemplate?.code) {
+//           setSourceCode(activeTemplate.code);
+//           return;
+//         }
+//       }
+      
+//       // 3. إذا لم يوجد تمبلت أو حدث خطأ، نستخدم الـ Fallback
+//       if (currentLangObj) {
+//         setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
+//       }
+//     } catch (error) {
+//       console.error("Error loading template:", error);
+//       // في حالة الخطأ، نضع الكود الافتراضي أيضاً لضمان عدم بقاء المحرر فارغاً
+//       if (currentLangObj) {
+//         setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
+//       }
+//     }
+//   };
+
+//   fetchTemplate();
+// }, [selectedLanguage, session, isMounted, currentLangObj, setSourceCode]);
 useEffect(() => {
-  // 1. إذا لم تكن المكونات جاهزة، لا تفعل شيئاً
   if (!isMounted || !selectedLanguage) return;
 
   const fetchTemplate = async () => {
     const langId = Number(selectedLanguage);
     const token = (session as any)?.accessToken;
 
+    if (!token) return; // ← انتظر لحد ما الـ token يجي
+
     try {
-      // 2. نحاول جلب التمبلت دائماً إذا كان لدينا token
-      if (token) {
-        const activeTemplate = await getActiveTemplateByLanguag(langId, token);
-        if (activeTemplate?.code) {
-          setSourceCode(activeTemplate.code);
-          return;
-        }
-      }
-      
-      // 3. إذا لم يوجد تمبلت أو حدث خطأ، نستخدم الـ Fallback
-      if (currentLangObj) {
-        setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
+      const activeTemplate = await getActiveTemplateByLanguag(langId, token);
+      if (activeTemplate?.code) {
+        setSourceCode(activeTemplate.code);
+      } else {
+        // fallback بدون الـ currentLangObj عشان مش dependency
+        setSourceCode(`// Start coding here...\n`);
       }
     } catch (error) {
-      console.error("Error loading template:", error);
-      // في حالة الخطأ، نضع الكود الافتراضي أيضاً لضمان عدم بقاء المحرر فارغاً
-      if (currentLangObj) {
-        setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
-      }
+      setSourceCode(`// Start coding here...\n`);
     }
   };
 
   fetchTemplate();
-}, [selectedLanguage, session, isMounted, currentLangObj, setSourceCode]);
-
+}, [selectedLanguage, isMounted]); // ← شيل session و currentLangObj من هنا
   return (
 <div className="flex flex-col h-[calc(100vh)] w-full bg-[#f8f9fa] overflow-hidden text-black pt-14 relative">
       <header className="h-14 bg-white border-b flex items-center justify-between px-4 shrink-0 shadow-sm relative z-[999]">
