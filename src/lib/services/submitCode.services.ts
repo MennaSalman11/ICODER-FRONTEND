@@ -12,30 +12,6 @@ export const getLanguages = async (oj: string) => {
   if (!res.ok) return [];
   return await res.json(); 
 };
-
-
-export const toggleSubmissionOpenness = async (submissionId: number) => {
-  try {
-    const { token } = await getUserToken();
-    const response = await fetch(`http://localhost:9090/api/v1/submissions/${submissionId}/toogle-openness`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status} - Failed to toggle openness`);
-    }
-
-    return await response.json(); 
-  } catch (error) {
-    console.error("Fetch error:", error);
-    throw error;
-  }
-};
-
 export const submitCodeSolution = async (payload: SubmissionFormValues) => {
   try {
     const { token } = await getUserToken();
@@ -47,17 +23,43 @@ export const submitCodeSolution = async (payload: SubmissionFormValues) => {
       },
       body: JSON.stringify(payload),
     });
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || "Failed to submit code");
     }
 
     return await response.json();
+    // ❌ شيلنا localStorage من هنا لأنه server-side
   } catch (error) {
     console.error("Submit Error:", error);
     throw error;
   }
 };
+
+export const toggleSubmissionOpenness = async (submissionId: number): Promise<boolean> => {
+  try {
+    const { token } = await getUserToken();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/submissions/${submissionId}/toogle-openness?submissionId=${submissionId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to toggle openness");
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Toggle Error:", error);
+    throw error;
+  }
+};
+
 
 export const getUserSessionByJudge = async (judgeType: string) => {
   try {

@@ -1,8 +1,7 @@
-
 "use client";
 
 import { getLanguageById, getLanguageList } from "@/src/lib/services/codingEditor.services";
-import { createContext, use, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 
 interface Languge {
@@ -10,15 +9,26 @@ interface Languge {
   name : string ,
   monaco_name : string
 }
+
 interface ProblemContextType {
   languages: Languge[],
   isLoading: boolean,
   selectedLanguage: string,
   sourceCode: string,
   setSourceCode: (code: string) => void,
-  changeLanguage: (languageId: string) => Promise<void>
+  changeLanguage: (languageId: string) => Promise<void>,
+  // 🆕 جديد: بنحفظ ونجيب الكود بناءً على problem_id + language_id
+  saveCodeForProblem: (problemId: string, languageId: string, code: string) => void,
+  getSavedCodeForProblem: (problemId: string, languageId: string) => string | null,
+  clearSavedCodeForProblem: (problemId: string, languageId: string) => void,
 }
+
 const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
+
+const CODE_STORAGE_PREFIX = "code_draft_";
+
+const buildStorageKey = (problemId: string, languageId: string) =>
+  `${CODE_STORAGE_PREFIX}${problemId}_${languageId}`;
 
 export default function ProblemProvider({children}:{children :React.ReactNode}) {
   const [sourceCode, setSourceCode] = useState("");
@@ -58,6 +68,41 @@ export default function ProblemProvider({children}:{children :React.ReactNode}) 
       console.log("Error changing language:", error);
     }
   } ;
+
+  // 🆕 حفظ الكود في localStorage بمفتاح خاص بالمشكلة + اللغة
+  const saveCodeForProblem = (problemId: string, languageId: string, code: string) => {
+    if (typeof window === "undefined") return;
+    if (!problemId || !languageId) return;
+    try {
+      localStorage.setItem(buildStorageKey(problemId, languageId), code);
+    } catch (error) {
+      console.log("Error saving code draft:", error);
+    }
+  };
+
+  // 🆕 جلب الكود المحفوظ لمشكلة معينة + لغة معينة (null لو مفيش)
+  const getSavedCodeForProblem = (problemId: string, languageId: string): string | null => {
+    if (typeof window === "undefined") return null;
+    if (!problemId || !languageId) return null;
+    try {
+      return localStorage.getItem(buildStorageKey(problemId, languageId));
+    } catch (error) {
+      console.log("Error reading code draft:", error);
+      return null;
+    }
+  };
+
+  // 🆕 مسح الكود المحفوظ (مثلاً بعد submit ناجح)
+  const clearSavedCodeForProblem = (problemId: string, languageId: string) => {
+    if (typeof window === "undefined") return;
+    if (!problemId || !languageId) return;
+    try {
+      localStorage.removeItem(buildStorageKey(problemId, languageId));
+    } catch (error) {
+      console.log("Error clearing code draft:", error);
+    }
+  };
+
   return (
     <ProblemContext.Provider value ={{
       languages,
@@ -65,7 +110,10 @@ export default function ProblemProvider({children}:{children :React.ReactNode}) 
       selectedLanguage,
       sourceCode,
       setSourceCode,
-      changeLanguage
+      changeLanguage,
+      saveCodeForProblem,
+      getSavedCodeForProblem,
+      clearSavedCodeForProblem,
     }}>
       {children}
     </ProblemContext.Provider>
