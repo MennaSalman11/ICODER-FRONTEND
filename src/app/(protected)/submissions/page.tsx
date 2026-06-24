@@ -107,12 +107,18 @@ export default function SubmissionsPage() {
             <div className="flex flex-wrap gap-6 p-5 bg-white border border-gray-200 rounded-xl shadow-sm items-end">
               <div className="flex flex-col">
                 <label className="text-xs font-bold text-gray-500 uppercase mb-2">Username</label>
-                <input
-                  className="border border-gray-300 rounded-md p-2 w-48 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Search user..."
-                  value={filters.handle}   // ✅ كان filters.userHandle
-                  onChange={(e) => setFilters(prev => ({ ...prev, handle: e.target.value, page: 0 }))}
-                />
+            <input
+  className={`border border-gray-300 rounded-md p-2 w-48 focus:ring-2 focus:ring-blue-500 outline-none ${
+    viewType === 'mine' ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''
+  }`}
+  placeholder="Search user..."
+  value={filters.handle}
+  readOnly={viewType === 'mine'} // ✅
+  onChange={(e) => {
+    if (viewType === 'mine') return; // ✅
+    setFilters(prev => ({ ...prev, handle: e.target.value, page: 0 }));
+  }}
+/>
               </div>
 
               <div className="flex flex-col">

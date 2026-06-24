@@ -43,7 +43,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
-          {/* لفي الـ Navbar والـ main بـ MathJaxContext */}
+         
           <MathJaxContext config={mathJaxConfig}>
            <Suspense fallback={null}>
   <Navbar />

@@ -1,21 +1,23 @@
 import { getUserToken } from '@/src/lib/server-utils';
 import { Template, TemplateContent } from "@/src/types/templates.interface";
 
-// import { getUserToken } from "../server-utils";
-
-export default async function getAllTemplates(page:number , token:string): Promise<Template> {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates?page=${page}`, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        }
-    });
-
-    if (!res.ok) {
-        throw new Error(`Failed to fetch templates: ${res.statusText}`);   
+export default async function getAllTemplates(page: number, token: string): Promise<Template> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/coding/editor/templates?page=${page}&sort=created_and_updated_at,asc`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
     }
-    return res.json();
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch templates: ${res.statusText}`);
+  }
+
+  return res.json();
 }
 // create a new template
 export const createTemplate = async (templateData: Omit<TemplateContent, 'template_id' | 'enabled' | 'monaco_name'>, token: string) => {

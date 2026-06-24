@@ -14,9 +14,6 @@ export interface ActivityGridDay {
   attempted_count: number;
 }
 
-/**
- * دالة مساعدة لتوحيد طلبات الـ API وتقليل التكرار
- */
 async function fetchWithAuth(endpoint: string): Promise<any> {
   const { token } = await getUserToken();
   
@@ -35,16 +32,10 @@ async function fetchWithAuth(endpoint: string): Promise<any> {
   return res.json();
 }
 
-/**
- * جلب الـ Streak الحالي للمستخدم
- */
 export async function getActivityStreak(timezone = "UTC"): Promise<StreakData> {
   return fetchWithAuth(`/api/v1/activity-streak?timezone=${timezone}`);
 }
 
-/**
- * جلب بيانات الـ Grid لسنة معينة
- */
 export async function getActivityGrid(year: number, timezone = "UTC"): Promise<ActivityGridDay[]> {
   return fetchWithAuth(`/api/v1/activity-logs/grid?year=${year}&timezone=${timezone}`);
 }

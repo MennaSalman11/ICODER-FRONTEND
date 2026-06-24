@@ -31,6 +31,7 @@ import { signOut, useSession } from "next-auth/react";
 import { notificationService } from "../../lib/services/notification-service";
 import { NotificationResponse } from "../../types/notification";
 import { getProfilePicture } from "@/src/lib/services/profile.services";
+import { useUserContext } from "../context/UserContext";
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
@@ -236,16 +237,19 @@ const NotificationDropdown: React.FC = () => {
 const Navbar = () => {
 
   const { data: session, status } = useSession();
-  const [userImage, setUserImage] = useState<string | null>(null);
-  const pathname = usePathname();  // ← رجّع usePathname
+  // const [userImage, setUserImage] = useState<string | null>(null);
+  const pathname = usePathname();  
   const [scrolled, setScrolled] = useState(false);
+const { profilePicture } = useUserContext();
+console.log("Navbar sees profilePicture:", profilePicture);
 
-  const isAuthPage = pathname === "/login" || pathname === "/register";
-  const isLandingPage = pathname === "/";
-  // const isDarkNavbar = isAuthPage || isLandingPage;
+const [mounted, setMounted] = useState(false);
 
-  const isDarkNavbar = status !== "authenticated";
+useEffect(() => {
+  setMounted(true);
+}, []);
 
+const isDarkNavbar = !mounted || status !== "authenticated";
   const navLinkClass = isDarkNavbar
     ? "text-white/75 hover:text-white"
     : "text-slate-500 hover:text-blue-600";
@@ -262,25 +266,7 @@ useEffect(() => {
   window.addEventListener("scroll", onScroll);
   return () => window.removeEventListener("scroll", onScroll);
 }, []);
-  useEffect(() => {
-  const fetchUserImage = async () => {
-    const handle = session?.user?.handle;
 
-    if (!handle) return;
-
-    const res = await getProfilePicture(handle);
-
-    console.log("Navbar Picture:", res.data);
-
-    if (res.ok && res.data?.picture_url) {
-      setUserImage(res.data.picture_url);
-    }
-  };
-
-  if (status === "authenticated") {
-    fetchUserImage();
-  }
-}, [status, session]);
 
   return (
 <header
@@ -298,7 +284,7 @@ useEffect(() => {
         {/* Left Side: Logo & Main Nav */}
         <div className="flex items-center gap-10">
          <Link href="/" className="flex items-center gap-1 font-bold text-xxlg">
-  <Logo dark={isDarkNavbar} scale={1.2} /> 
+  <Logo dark={isDarkNavbar} scale={0.8} /> 
 </Link>
 
           {/* Navigation Links (Desktop) */}
@@ -382,14 +368,11 @@ useEffect(() => {
         : "bg-slate-100 border-slate-200"
     }`}
   >
-    {userImage ? (
-      <img src={userImage} alt="User" className="w-full h-full object-cover" />
-    ) : (
-      <User
-        size={20}
-        className={isDarkNavbar ? "text-white/70" : "text-slate-400"}
-      />
-    )}
+     {profilePicture ? (
+    <img src={profilePicture} alt="User" className="w-full h-full object-cover" />
+  ) : (
+    <User size={20} />
+  )}
   </div>
 
   <ChevronDown

@@ -14,16 +14,14 @@ import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { deleteProfilePicture,  updateProfilePicture } from "@/src/lib/services/changePicture.services";
 import { useSession } from "next-auth/react";
+import { useUserContext } from "@/src/components/context/UserContext";
 
 
 export default function GeneralSettingsPage() {
 const [previewImage, setPreviewImage] = useState<string | null>(null);
-const { data: session, status } = useSession();
-
+// const { data: session, status } = useSession();
 const imageInputRef = useRef<HTMLInputElement>(null);
-
-
-
+const { setProfilePicture, profilePicture } = useUserContext();
 const {
   register,
   handleSubmit,
@@ -40,28 +38,7 @@ const {
   const params = useParams();
  const handleFromUrl = params.handle; 
   const [userData, setUserData] = useState<any>(null);
-// useEffect(() => {
-//   if (!handleFromUrl) return;
 
-//   const fetchData = async () => {
-//     const profileRes = await getProfile(handleFromUrl as string);
-
-//     if (profileRes.ok) {
-//       setUserData(profileRes.data);
-//     }
-
-//     const pictureRes = await getProfilePicture(handleFromUrl as string);
-
-//     if (pictureRes.ok && pictureRes.data?.picture_url) {
-//       setUserData((prev: any) => ({
-//         ...prev,
-//         picture_url: pictureRes.data.picture_url,
-//       }));
-//     }
-//   };
-
-//   fetchData();
-// }, [handleFromUrl]);
 useEffect(() => {
   if (handleFromUrl) {
     const fetchProfile = async () => {
@@ -69,63 +46,34 @@ useEffect(() => {
 
       if (res.ok) {
         setUserData(res.data);
-
         reset({
           nickname: res.data.nickname || "",
           school: res.data.school || "",
           current_password: "",
         });
       }
+
+     
+      const pictureRes = await getProfilePicture(handleFromUrl as string);
+      console.log("Picture res:", pictureRes.data);
+      
+   if (pictureRes.ok && pictureRes.data?.picture_url) { 
+  setPreviewImage(pictureRes.data.picture_url);
+  setUserData((prev: any) => ({
+    ...prev,
+    picture_url: pictureRes.data.picture_url,
+  }));
+} else {
+  setPreviewImage(null); // 
+  setUserData((prev: any) => ({ ...prev, picture_url: null })); // ✅
+}
     };
 
     fetchProfile();
   }
 }, [handleFromUrl, reset]);
-// const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-//   const file = e.target.files?.[0];
-//   if (!file) return;
 
-//   // const reader = new FileReader();
-//   // reader.readAsDataURL(file);
-//   // reader.onloadend = async () => {
-//   //   const base64String = reader.result as string;
-//   //   setPreviewImage(base64String);
-
-// //     try {
-// //       // تمرير الـ base64 و الـ handle من الـ params
-// //       const res = await updateProfilePicture(base64String);
-      
-// //       if (res.ok) {
-// //         toast.success("Photo updated!");
-// //       } else {
-// //         toast.error("Failed to update photo");
-// //       }
-// //     } catch (error) {
-// //       console.error(error);
-// //     }
-// //   };
-// // };
-//   const objectUrl = URL.createObjectURL(file);
-  
-//   setPreviewImage(objectUrl);
-//    try {
-// const base64 = await fileToBase64(file);
-
-// const pureBase64 = base64.split(",")[1];
-
-// const res = await updateProfilePicture(pureBase64);
-//     if (res.ok) {
-//       toast.success("Photo updated!");
-//     } else {
-//       toast.error("Failed with FormData too");
-//     }
-//   } catch (error) {
-//     console.error(error);
-//   }
-// };
-const handleFileChange = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
+const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
@@ -134,14 +82,26 @@ const handleFileChange = async (
 
   try {
     const res = await updateProfilePicture(file);
-console.log(res.data);
+    console.log(res.data);
+
     if (res.ok) {
+      // ✅ حدّث userData بالـ URL الجديدة من السيرفر
+      if (res.data?.picture_url) {
+        setUserData((prev: any) => ({
+          ...prev,
+          picture_url: res.data.picture_url,
+        }));
+        setPreviewImage(res.data.picture_url);
+         setProfilePicture(res.data.picture_url); 
+      }
       toast.success("Photo updated!");
     } else {
+      setPreviewImage(null); 
       toast.error("Failed to update photo");
     }
   } catch (error) {
     console.error(error);
+    setPreviewImage(null);
     toast.error("Something went wrong");
   }
 };
@@ -149,16 +109,15 @@ const handleRemovePhoto = async () => {
   const res = await deleteProfilePicture();
 
   if (res.ok) {
-  
-    setPreviewImage(null); 
+    setPreviewImage(null);
+    setProfilePicture(null);
     
-    if (userData) {
-      setUserData({ ...userData, picture_url: null });
-    }
+    // ✅ امسح الصورة من userData بشكل صريح
+    setUserData((prev: any) => ({ ...prev, picture_url: null }));
 
-    toast.success("Profile picture removed successfully" ,{position:'top-right'});
+    toast.success("Profile picture removed successfully", { position: 'top-right' });
   } else {
-    toast.error("Failed to remove photo",);
+    toast.error("Failed to remove photo");
   }
 };
 
