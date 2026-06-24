@@ -1,36 +1,69 @@
 "use client";
 
-import React from "react";
-import { mockScoreboard, ContestantRank } from "./scoreboardData";
+import React, { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { ContestService } from "@/src/lib/services/contest-services";
+import { LeaderboardRow } from "@/src/types/contest";
+import { toast } from "sonner";
 
-export default function ScoreBoard() {
+export default function ScoreBoard({ contestId }: { contestId: string }) {
+    const { data: session } = useSession();
+    const token = (session as any)?.accessToken;
+
+    const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchLeaderboard = async () => {
+            if (!contestId) return;
+
+            setIsLoading(true);
+            try {
+                const data = await ContestService.getContestLeaderboard(Number(contestId), token);
+                setLeaderboard(data);
+                console.log(data);
+            } catch (error) {
+                console.error("Failed to fetch leaderboard:", error);
+                toast.error("Failed to load scoreboard data.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchLeaderboard();
+    }, [contestId, token]);
+
     // 1. استخراج كل أسماء المسائل الفريدة (A, B, C...) ديناميكياً لعرضها في الهيدر
     const problemLabels = Array.from(
-        new Set(mockScoreboard.flatMap((c) => Object.keys(c.problemResults)))
+        new Set(leaderboard.flatMap((c) => Object.keys(c.problemResults || {})))
     ).sort();
 
+    if (isLoading) {
+        return (
+            <div className="w-full flex justify-center py-12">
+                <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
     return (
-        // تعديل: الحشو الخارجي بقى p-4 على الموبايل وبيزيد لـ p-6 على الشاشات الأكبر
         <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden p-4 sm:p-6">
-            
+
             {/* عنوان الكومبوننت */}
             <div className="mb-4 sm:mb-6 flex items-start justify-between">
                 <h2 className="text-lg sm:text-xl font-bold text-[#1b4583]">Scoreboard</h2>
             </div>
 
             {/* الجدول - حاوية التمرير الأفقي */}
-            {/* إضافة حماية لشريط التمرير ليظهر بشكل ناعم */}
             <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-200">
-                {/* تعديل: إضافة min-w-max تضمن إن الجدول ميتعصرش على الموبايل وتفضل المسافات ثابتة */}
                 <table className="w-full min-w-max border-collapse text-left table-fixed sm:table-auto">
                     <thead>
                         <tr className="bg-slate-50 border-b border-gray-100">
-                            {/* تعديل: تقليل الحشو للنصوص (px-2 للموبايل و px-4 للشاشات الكبيرة) */}
                             <th className="px-2 sm:px-4 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider w-12 sm:w-16 text-center">Rank</th>
                             <th className="px-3 sm:px-6 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider min-w-[120px] sm:min-w-[180px]">Handle</th>
                             <th className="px-2 sm:px-4 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider w-16 sm:w-24 text-center">Solved</th>
                             <th className="px-2 sm:px-4 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider w-16 sm:w-24 text-center">Penalty</th>
-                            
+
                             {/* عواميد المسائل الديناميكية */}
                             {problemLabels.map((label) => (
                                 <th key={label} className="px-1 sm:px-2 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-[#1b4583] uppercase tracking-wider text-center w-10 sm:w-14">
@@ -41,7 +74,7 @@ export default function ScoreBoard() {
                     </thead>
 
                     <tbody className="divide-y divide-gray-100">
-                        {mockScoreboard.map((row) => (
+                        {leaderboard.map((row) => (
                             <tr key={row.userId} className="hover:bg-slate-50/50 transition-colors duration-150">
                                 {/* الـ Rank */}
                                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-center text-xs sm:text-sm font-bold text-gray-800">
@@ -62,6 +95,8 @@ export default function ScoreBoard() {
                                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-center text-xs sm:text-sm font-medium text-gray-500">
                                     {row.totalPenalty}
                                 </td>
+
+                                
 
                                 {/* خلايا حالة المسائل */}
                                 {problemLabels.map((label) => {

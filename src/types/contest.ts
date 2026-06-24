@@ -77,3 +77,22 @@ export interface PaginatedSubmissionsResponse {
   numberOfElements: number;
   empty: boolean;
 }
+
+export interface ProblemResult {
+  solved: boolean;
+  solvedTime: number;
+  wrongAttempts: number;
+  firstAccepted: boolean;
+}
+
+
+export interface LeaderboardRow {
+  rank: number;
+  userId: number;
+  handle: string;
+  totalScore: number;
+  totalPenalty: number;
+  // الـ Key هنا بيكون كود المسألة أو الـ property الـ dynamic زي ما واضح في السواجر
+  problemResults: Record<string, ProblemResult>; 
+}
+

@@ -35,7 +35,9 @@ export interface Contest {
     owner_handle?: string;
     group_name?: string;
     group_id?: number;
-    solved?: boolean; // بيان حالة الدخول المسبق
+    solved?: boolean; 
+    length: string;
+    // بيان حالة الدخول المسبق
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,34 +51,58 @@ function getContestStatus(begin: string, end: string): "running" | "ended" | "sc
     return "running";
 }
 
-function formatTimeRemaining(begin: string, end: string): { text: string; colorCls: string; icon: any } {
+function formatTimeRemaining(beginStr: string, lengthStr: string): { text: string; colorCls: string; icon: any } {
     const now = Date.now();
-    const s = new Date(begin).getTime();
-    const e = new Date(end).getTime();
+    const startTime = new Date(beginStr).getTime();
 
-    if (now < s) {
-        const diff = s - now;
-        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        return {
-            text: `Starts in ${days} Day${days !== 1 ? "s" : ""}`,
-            colorCls: "text-orange-500",
-            icon: faCalendarDays,
-        };
+    // 1. حساب تاريخ الانتهاء (End Time) عن طريق تفكيك الـ length (HH:MM:SS)
+    if (!lengthStr || !lengthStr.includes(":")) {
+        return { text: "Unknown duration", colorCls: "text-gray-400", icon: faClock };
+    }
+    
+    const [h, m, s] = lengthStr.split(":").map(Number);
+    const durationInMs = ((h || 0) * 3600 + (m || 0) * 60 + (s || 0)) * 1000;
+    const endTime = startTime + durationInMs;
+
+    // 2. حالة: الكونتست لسه مابداش (Future)
+    if (now < startTime) {
+        const diff = startTime - now;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        
+        if (days > 0) {
+            return {
+                text: `Starts in ${days}d ${hours}h`,
+                colorCls: "text-orange-500",
+                icon: faCalendarDays,
+            };
+        } else {
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            return {
+                text: `Starts in ${hours}h ${minutes}m`,
+                colorCls: "text-orange-500",
+                icon: faCalendarDays,
+            };
+        }
     }
 
-    if (now > e) {
-        const diff = now - e;
+    // 3. حالة: الكونتست انتهى (Past)
+    if (now > endTime) {
+        const diff = now - endTime;
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const text = days > 0 ? `Ended ${days} day${days !== 1 ? "s" : ""} ago` : `Ended ${hours}h ago`;
+        
         return { text, colorCls: "text-red-500", icon: faCheckCircle };
     }
 
-    const diff = e - now;
+    // 4. حالة: الكونتست شغال حالياً (Running)
+    const diff = endTime - now;
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const text = `${days}d ${hours}h ${minutes}m`;
+    
+    const text = days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`;
     return { text, colorCls: "text-green-600", icon: faClock };
 }
 
@@ -111,8 +137,8 @@ export default function ContestCard({ contest }: { contest: Contest }) {
         [contest.begin_time, contest.end_time]
     );
     const timeInfo = useMemo(
-        () => formatTimeRemaining(contest.begin_time, contest.end_time),
-        [contest.begin_time, contest.end_time]
+        () => formatTimeRemaining(contest.begin_time, contest.length),
+        [contest.begin_time, contest.length]
     );
 
     // ── Handler for Navigation ────────────────────────────────────────────────

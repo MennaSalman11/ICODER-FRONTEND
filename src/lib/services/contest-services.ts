@@ -1,5 +1,5 @@
 // src/lib/services/contest-services.ts
-import { SaveContestRequest } from '../../types/contest';
+import { LeaderboardRow, SaveContestRequest } from '../../types/contest';
 import { SubmissionFilters, PaginatedSubmissionsResponse } from '../../types/contest';
 
 const API_BASE_URL = 'http://localhost:9090/api/v1/contests';
@@ -148,27 +148,24 @@ export const ContestService = {
       'Content-Type': 'application/json',
     };
 
-    // إضافة توكن الحماية لو موجود
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // نداء الـ API بالمسار المظبوط ونوع الـ Method هو PUT
-    const response = await fetch(`http://localhost:9090/api/v1/contests/${contestId}`, {
+    const response = await fetch(`${API_BASE_URL}/${contestId}`, {
       method: 'PUT',
       headers: headers,
-      body: JSON.stringify(updatedData), // تحويل البيانات لـ JSON string
+      body: JSON.stringify(updatedData),
     });
 
-    // لو السيرفر رجع إيرور، نقرأ تفاصيل الإيرور عشان الـ Debugging يسهل علينا
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Failed to update contest: ${response.status} - ${errorText}`);
     }
 
-    // السيرفر بيرجع الـ Object المتعدل بعد النجاح
     return response.json();
   },
+
 
 
   joinProtectedContest: async (contestId: string | number, password: string, token?: string) => {
@@ -279,7 +276,34 @@ export const ContestService = {
     }
 
     return await response.json();
-  }
+  },
+  getContestLeaderboard: async (contestId: number, token?: string): Promise<LeaderboardRow[]> => {
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // لو الـ endpoint دي محتاجة توكن عشان يفتح الليدربورد
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/${contestId}/leaderboard`, {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch leaderboard: HTTP ${response.status}`);
+      }
+
+      const data: LeaderboardRow[] = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error in getContestLeaderboard:", error);
+      throw error;
+    }
+  },
 
 
 };

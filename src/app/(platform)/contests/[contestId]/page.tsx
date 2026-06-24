@@ -62,58 +62,55 @@ export default function ContestDashboardPage() {
         }
     };
 
-const handleUpdateContest = async (formData: any) => {
-    try {
-        const rawData = formData.payload ? formData.payload : formData;
+    const handleUpdateContest = async (formData: any) => {
+        try {
+            const rawData = formData.payload ? formData.payload : formData;
 
-        const rawProblems = rawData.problem_set || rawData.problemSet || [];
-        console.log("🚀 RAW PROBLEMS:", rawProblems);
-        const formattedProblemSet = rawProblems.map((prob: any) => ({
-            problem_id: Number(prob.problem_id || prob.id || 0),
-            problem_alias: prob.problem_alias || prob.alias || "string",
-            problem_weight: String(prob.problem_weight || prob.weight || "1")
-        }));
+            const rawProblems = rawData.problem_set || rawData.problemSet || [];
+            console.log("🚀 RAW PROBLEMS:", rawProblems);
 
-        const exactPayload = {
-            group_id: Number(rawData.group_id || rawData.groupId || 0),
-            title: rawData.title?.trim() || "string",
-            description: rawData.description?.trim() || "string",
-            begin_time: rawData.begin_time || rawData.beginTime,
-            length: rawData.length || "02:00:00",
-            contest_type: (rawData.contest_type || rawData.contestType || "CLASSICAL").toUpperCase(),
-            contest_openness: (rawData.contest_openness || rawData.contestOpenness || "PUBLIC").toUpperCase(),
-            password: rawData.password || "string",
-            history_rank: rawData.history_rank !== undefined ? rawData.history_rank : true,
-            problem_set: formattedProblemSet
-        };
+            const formattedProblemSet = rawProblems.map((prob: any) => ({
+                problem_id: Number(prob.problem_id || prob.id || 0),
+                problem_alias: prob.problem_alias || prob.alias || "",
+                // الـ problem_weight لو فاضي يتبعت "" زي ما الباكند طالب
+                problem_weight: prob.problem_weight !== undefined ? String(prob.problem_weight) : ""
+            }));
 
-        console.log("🚀 SENDING PERFECT MATCH PAYLOAD:", exactPayload);
+            const exactPayload = {
+                group_id: Number(rawData.group_id || rawData.groupId || 0),
+                title: rawData.title?.trim() || "",
+                description: rawData.description?.trim() || "",
+                // التأكد من إن الوقت ISO 8601
+                begin_time: rawData.begin_time || rawData.beginTime,
+                length: rawData.length || "02:00:00",
+                contest_type: (rawData.contest_type || rawData.contestType || "CLASSICAL").toUpperCase(),
+                contest_openness: (rawData.contest_openness || rawData.contestOpenness || "PUBLIC").toUpperCase(),
+                // لو الـ openness مش PROTECTED نبعت الـ password فاضية
+                password: (rawData.contest_openness?.toLowerCase() === "protected" || rawData.contestOpenness?.toLowerCase() === "protected")
+                    ? (rawData.password || "")
+                    : "",
+                history_rank: rawData.history_rank !== undefined ? rawData.history_rank : true,
+                problem_set: formattedProblemSet
+            };
 
-        const idToSend = formData.contestId || contestId; 
-        
-        // 1. نرسل التحديث للسيرفر
-        await ContestService.updateContest(idToSend, exactPayload, token);
-        
-        // 2. الحل السحري: نقوم باستدعاء الدالة التي تجلب بيانات المسابقة الأصلية في الأب
-        // ابحثي عن اسم الدالة عندك في الأب (غالباً يكون اسمها fetchContest أو شيئاً مشابهاً) وناديها هنا:
-        // if (typeof fetchContestDetails === "function") {
-        //     await fetchContestDetails(); 
-        // } else {
-        //     // حل بديل مؤقت إذا لم تكن الدالة متوفرة: نقوم بعمل تحديث بالـ payload الذي أرسلناه وتأكدنا منه
-        //     // setContestData(prev => ({ ...prev, ...exactPayload }));
-            
-        //     // أو الأضمن لسلامة كود الـ Timer عمل ريلود خفيف للصفحة فوراً:
-        //     window.location.reload();
-        // }
+            console.log("🚀 SENDING CORRECTED PAYLOAD:", exactPayload);
 
-        toast.success("Contest updated successfully!");
-        setIsEditModalOpen(false);
-    } catch (error) {
-        console.error("Failed to update contest:", error);
-        toast.error("Failed to update contest. Please try again.");
-        throw error;
-    }
-};
+            const idToSend = formData.contestId || contestId;
+
+            await ContestService.updateContest(idToSend, exactPayload, token);
+
+            // إعادة تحميل الصفحة لتحديث البيانات
+            window.location.reload();
+
+            toast.success("Contest updated successfully!");
+            setIsEditModalOpen(false);
+        } catch (error) {
+            console.error("Failed to update contest:", error);
+            toast.error("Failed to update contest. Please try again.");
+            throw error;
+        }
+    };
+
     // ── Fetch Contest Data ─────────────────────────────────────────────
     useEffect(() => {
         const fetchData = async () => {
@@ -326,7 +323,7 @@ const handleUpdateContest = async (formData: any) => {
                 {/* ── Rank Tab ─────────────────────────────────────────────── */}
                 {activeTab === "rank" && (
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-12 text-center">
-                        <ScoreBoard />
+                        <ScoreBoard contestId={contestId} />
                     </div>
                 )}
             </div>
