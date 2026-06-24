@@ -150,7 +150,8 @@ export default function NotificationsPage() {
                 const url = new URL(targetUrl);
                 const token = url.searchParams.get("token");
                 if (token) {
-                    router.push(`/groups/invite?token=${encodeURIComponent(token)}`);
+                     router.push(notification.action_url);
+                     
                     return;
                 }
             } catch (e) {
@@ -286,8 +287,7 @@ export default function NotificationsPage() {
                                             </p>
                                             <p className="text-xs text-slate-400 mt-1">
                                                 {formatDate(
-                                                    notification.createdAt || 
-                                                    (notification as unknown as Record<string, string>).created_at
+                                                    notification.created_at
                                                 )}
                                             </p>
                                         </div>

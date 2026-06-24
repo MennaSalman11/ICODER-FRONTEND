@@ -8,7 +8,7 @@ import { useSession } from "next-auth/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type JudgeType = "CODEFORCES" | "CSES" | "V_JUDGE";
+type JudgeType = "CODEFORCES" | "CSES" | "ATCODER";
 type VerifyStatus = "idle" | "loading" | "success" | "error";
 
 interface Problem {
@@ -38,6 +38,7 @@ interface EditContestModalProps {
     initialData: any;
     onSave: (payload: any) => Promise<void>;
     problems?: any[];
+    groupId?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,7 +51,8 @@ export default function EditContestModal({
     onClose,
     initialData,
     onSave,
-    problems: incomingProblems
+    problems: incomingProblems,
+    groupId
 }: EditContestModalProps) {
     const { data: session } = useSession();
     const token = (session as any)?.accessToken as string | undefined;
@@ -243,7 +245,7 @@ export default function EditContestModal({
         const beginTimeISO = formData.beginTime ? new Date(formData.beginTime).toISOString() : "";
         const rawLength = formData.length.trim();
         const lengthFormatted = rawLength.split(":").length === 2 ? `${rawLength}:00` : rawLength;
-
+ groupId = Number(groupId ?? initialData?.group_id ?? initialData?.groupId ?? 0);
         const contestId = Number(
             initialData?.id ??
             initialData?.contest_id ??
@@ -260,6 +262,7 @@ export default function EditContestModal({
             contest_openness: formData.openness,
             history_rank: formData.historyRank,
             problem_set: problemSet,
+            group_id: groupId,
             ...(formData.openness === "protected" && { password: formData.password }),
         };
 
@@ -463,7 +466,7 @@ export default function EditContestModal({
                                                         >
                                                             <option value="CODEFORCES">CODEFORCES</option>
                                                             <option value="CSES">CSES</option>
-                                                            <option value="V_JUDGE">V_JUDGE</option>
+                                                            <option value="ATCODER">ATCODER</option>
                                                         </select>
 
                                                         <input

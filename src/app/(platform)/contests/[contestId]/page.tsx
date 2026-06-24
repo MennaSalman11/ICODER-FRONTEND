@@ -8,6 +8,7 @@ import ContestHeader from "../components/contestHeader";
 import ContestTabs from "../components/contestTaps";
 import ProblemsTable from "../components/problemsTable";
 import EditContestModal from "../components/EditContestModal";
+import StatusTable from "../components/StatusTable";
 import { toast } from "sonner";
 
 // استيراد الأيقونات للكارت الجديد
@@ -39,7 +40,7 @@ export default function ContestDashboardPage() {
     const [activeTab, setActiveTab] = useState("overview");
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [fetchError, setFetchError] = useState<string>(""); 
+    const [fetchError, setFetchError] = useState<string>("");
 
     const { data: session } = useSession();
     const token = (session as any)?.accessToken;
@@ -61,19 +62,58 @@ export default function ContestDashboardPage() {
         }
     };
 
-    const handleUpdateContest = async (formData: any) => {
-        try {
-            const updated = await ContestService.updateContest(contestId, formData, token);
-            setContestData(updated);
-            toast.success("Contest updated successfully!");
-            setIsEditModalOpen(false);
-        } catch (error) {
-            console.error("Failed to update contest:", error);
-            toast.error("Failed to update contest. Please try again.");
-            throw error;
-        }
-    };
+const handleUpdateContest = async (formData: any) => {
+    try {
+        const rawData = formData.payload ? formData.payload : formData;
 
+        const rawProblems = rawData.problem_set || rawData.problemSet || [];
+        console.log("🚀 RAW PROBLEMS:", rawProblems);
+        const formattedProblemSet = rawProblems.map((prob: any) => ({
+            problem_id: Number(prob.problem_id || prob.id || 0),
+            problem_alias: prob.problem_alias || prob.alias || "string",
+            problem_weight: String(prob.problem_weight || prob.weight || "1")
+        }));
+
+        const exactPayload = {
+            group_id: Number(rawData.group_id || rawData.groupId || 0),
+            title: rawData.title?.trim() || "string",
+            description: rawData.description?.trim() || "string",
+            begin_time: rawData.begin_time || rawData.beginTime,
+            length: rawData.length || "02:00:00",
+            contest_type: (rawData.contest_type || rawData.contestType || "CLASSICAL").toUpperCase(),
+            contest_openness: (rawData.contest_openness || rawData.contestOpenness || "PUBLIC").toUpperCase(),
+            password: rawData.password || "string",
+            history_rank: rawData.history_rank !== undefined ? rawData.history_rank : true,
+            problem_set: formattedProblemSet
+        };
+
+        console.log("🚀 SENDING PERFECT MATCH PAYLOAD:", exactPayload);
+
+        const idToSend = formData.contestId || contestId; 
+        
+        // 1. نرسل التحديث للسيرفر
+        await ContestService.updateContest(idToSend, exactPayload, token);
+        
+        // 2. الحل السحري: نقوم باستدعاء الدالة التي تجلب بيانات المسابقة الأصلية في الأب
+        // ابحثي عن اسم الدالة عندك في الأب (غالباً يكون اسمها fetchContest أو شيئاً مشابهاً) وناديها هنا:
+        // if (typeof fetchContestDetails === "function") {
+        //     await fetchContestDetails(); 
+        // } else {
+        //     // حل بديل مؤقت إذا لم تكن الدالة متوفرة: نقوم بعمل تحديث بالـ payload الذي أرسلناه وتأكدنا منه
+        //     // setContestData(prev => ({ ...prev, ...exactPayload }));
+            
+        //     // أو الأضمن لسلامة كود الـ Timer عمل ريلود خفيف للصفحة فوراً:
+        //     window.location.reload();
+        // }
+
+        toast.success("Contest updated successfully!");
+        setIsEditModalOpen(false);
+    } catch (error) {
+        console.error("Failed to update contest:", error);
+        toast.error("Failed to update contest. Please try again.");
+        throw error;
+    }
+};
     // ── Fetch Contest Data ─────────────────────────────────────────────
     useEffect(() => {
         const fetchData = async () => {
@@ -261,22 +301,26 @@ export default function ContestDashboardPage() {
                         </div>
 
                         {/* جدول المسائل أسفل الكارت */}
-                        <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestId} />
+                        {(contestData.contest_status === "running" || contestData.contest_status === "ended") && (
+                            <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestId} />
+                        )}
                     </div>
                 )}
 
                 {/* ── Problems Tab ─────────────────────────────────────────── */}
                 {activeTab === "problems" && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                        <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestData.id}  />
+                        {contestData.contest_status === "running" || contestData.contest_status === "ended" ? (
+                            <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestData.id} />
+                        ) : (
+                            <div className="text-center text-gray-500">No problems available</div>
+                        )}
                     </div>
                 )}
 
                 {/* ── Status Tab ───────────────────────────────────────────── */}
                 {activeTab === "status" && (
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-12 text-center">
-                        <p className="text-gray-400 text-sm">Submissions status coming soon...</p>
-                    </div>
+                    <StatusTable contestId={contestId} />
                 )}
 
                 {/* ── Rank Tab ─────────────────────────────────────────────── */}
@@ -294,6 +338,7 @@ export default function ContestDashboardPage() {
                 initialData={contestData}
                 onSave={handleUpdateContest}
                 problems={problems}
+                groupId={contestData.group_id}
             />
         </div>
     );

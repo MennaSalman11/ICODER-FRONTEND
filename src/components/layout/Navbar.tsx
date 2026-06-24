@@ -207,7 +207,7 @@ const NotificationDropdown: React.FC = () => {
                       {notification.message}
                     </p>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      {formatDate(notification.createdAt)}
+                      {formatDate(notification.created_at)}
                     </p>
                   </div>
                 </button>

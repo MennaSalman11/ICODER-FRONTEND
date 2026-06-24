@@ -23,3 +23,57 @@ export interface SaveContestRequest {
   history_rank: boolean;
   problem_set: ProblemSetItem[];
 }
+
+export interface SubmissionFilters {
+  handle?: string;
+  result?: string; // الـ verdict مثل 'failed' أو 'accepted'
+  language?: string;
+  problem_id?: number | string;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
+export interface Submission {
+  id: string;
+  userHandle: string;
+  userId: string;
+  onlineJudge: string;
+  problemId: string;
+  problemAlias: string;
+  verdict: string;
+  language: string;
+  submittedAt: string;
+  isOpen: boolean;
+  timeUsage?: number;
+  memoryUsage?: number;
+}
+
+export interface PaginatedSubmissionsResponse {
+  content: Submission[];
+  pageable: {
+    pageNumber: number;
+    pageSize: number;
+    sort: {
+      sorted: boolean;
+      empty: boolean;
+      unsorted: boolean;
+    };
+    offset: number;
+    paged: boolean;
+    unpaged: boolean;
+  };
+  last: boolean;
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  sort: {
+    sorted: boolean;
+    empty: boolean;
+    unsorted: boolean;
+  };
+  first: boolean;
+  numberOfElements: number;
+  empty: boolean;
+}

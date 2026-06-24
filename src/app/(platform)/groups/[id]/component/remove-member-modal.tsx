@@ -3,39 +3,19 @@
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
-import { groupService } from "@/src/lib/services/group-service";
-import { toast } from "sonner";
 
 interface RemoveMemberModalProps {
     isOpen: boolean;
     onClose: () => void;
-    groupId: number;
     memberHandle: string;
     memberNickname: string;
-    onSuccess: () => void;
+    onConfirm: () => void;
+    isRemoving: boolean;
 }
 
-const RemoveMemberModal = ({ isOpen, onClose, groupId, memberHandle, memberNickname, onSuccess }: RemoveMemberModalProps) => {
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const handleDelete = async () => {
-        setIsDeleting(true);
-        try {
-            await groupService.removeMember(groupId, memberHandle);
-            toast.success(`"${memberNickname}" has been removed from the group.`);
-            onSuccess();
-            onClose();
-        } catch (error: any) {
-            console.error("Failed to remove member:", error);
-            const errorMessage = error?.response?.data?.message || "Failed to remove member. Please try again.";
-            toast.error(errorMessage);
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
+const RemoveMemberModal = ({ isOpen, onClose, memberHandle, memberNickname, onConfirm, isRemoving }: RemoveMemberModalProps) => {
     const handleClose = () => {
-        if (isDeleting) return;
+        if (isRemoving) return;
         onClose();
     };
 
@@ -59,7 +39,7 @@ const RemoveMemberModal = ({ isOpen, onClose, groupId, memberHandle, memberNickn
                     <div className="flex justify-end px-5 pt-4">
                         <button
                             onClick={handleClose}
-                            disabled={isDeleting}
+                            disabled={isRemoving}
                             className="text-gray-400 hover:text-gray-600 transition cursor-pointer p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <FontAwesomeIcon icon={faXmark} className="w-5 h-5 text-lg" />
@@ -92,18 +72,18 @@ const RemoveMemberModal = ({ isOpen, onClose, groupId, memberHandle, memberNickn
                         <button
                             type="button"
                             onClick={handleClose}
-                            disabled={isDeleting}
+                            disabled={isRemoving}
                             className="flex-1 px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Cancel
                         </button>
                         <button
                             type="button"
-                            onClick={handleDelete}
-                            disabled={isDeleting}
+                            onClick={onConfirm}
+                            disabled={isRemoving}
                             className="flex-1 px-5 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            {isDeleting ? (
+                            {isRemoving ? (
                                 <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                                     Removing...

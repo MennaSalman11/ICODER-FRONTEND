@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHashtag, faPlus, faSearch } from "@fortawesome/free-solid-svg-icons";
+import { faHashtag, faPlus, faSearch, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import CreateGroupModal from "./create-group-modal";
 import JoinGroupModal from "./join-group-modal";
 
@@ -10,9 +10,10 @@ interface GroupsHeaderProps {
     onSearch: (query: string) => void;
     onTabChange: (tab: "my" | "explore") => void;
     onSuccess: () => void;
+    isLoading?: boolean;
 }
 
-const GroupsHeader = ({ onSearch, onTabChange, onSuccess }: GroupsHeaderProps) => {
+const GroupsHeader = ({ onSearch, onTabChange, onSuccess, isLoading }: GroupsHeaderProps) => {
     const [activeTab, setActiveTab] = useState<"my" | "explore">("my");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -35,13 +36,21 @@ const GroupsHeader = ({ onSearch, onTabChange, onSuccess }: GroupsHeaderProps) =
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
                         {/* Page Header */}
-                        <div>
-                            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                                Groups
-                            </h1>
-                            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                                Manage and explore programming groups
-                            </p>
+                        <div className="flex items-center gap-4">
+                            <div>
+                                <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+                                    Groups
+                                </h1>
+                                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                                    Manage and explore programming groups
+                                </p>
+                            </div>
+                            {isLoading && (
+                                <div className="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 animate-pulse">
+                                    <FontAwesomeIcon icon={faSpinner} className="animate-spin text-sm" />
+                                    <span className="text-[10px] font-bold uppercase tracking-tight hidden sm:inline">Updating</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Top Buttons */}

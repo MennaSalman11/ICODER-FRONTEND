@@ -8,7 +8,9 @@ import {
     faChevronLeft,
     faChevronRight,
     faCalendarDays,
-    faClock
+    faClock,
+    faBook,
+    faQuestionCircle
 } from "@fortawesome/free-solid-svg-icons";
 import { MeetingsService, CreateOfficialMeetingRequest } from "@/src/lib/services/meetings-services";
 import { ContestService } from "@/src/lib/services/contest-services";
@@ -23,6 +25,11 @@ interface CreateOfficialMeetingModalProps {
     onSuccess?: () => void;
 }
 
+const meetingTypeDescriptions = {
+  GENERAL: "Sessions covering general algorithms, techniques, and problem-solving topics.",
+  EDITORIAL: "Detailed explanations of problems from a specific contest.",
+  HELPDESK: "Live Q&A session for contestants during a contest.",
+};
 type MeetingType = "GENERAL" | "EDITORIAL" | "HELPDESK";
 
 export default function CreateOfficialMeetingModal({
@@ -183,9 +190,13 @@ export default function CreateOfficialMeetingModal({
                                         `}
                                     >
                                         {type.charAt(0) + type.slice(1).toLowerCase().replace('_', ' ')}
+                                    
                                     </button>
+                                    
                                 ))}
+                                
                             </div>
+                            <p className="text-xs text-gray-500">{meetingTypeDescriptions[meetingType]}</p>
                         </div>
 
                         {/* Schedule Toggle */}

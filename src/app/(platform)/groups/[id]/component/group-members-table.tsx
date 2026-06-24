@@ -55,6 +55,7 @@ const GroupMembersTable = ({
     // State for the remove member modal
     const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
     const [selectedMember, setSelectedMember] = useState<{ handle: string; nickname: string } | null>(null);
+    const [isRemoving, setIsRemoving] = useState(false);
 
     // State for promote/demote loading (tracks the member ID currently being processed)
     const [promotingMemberId, setPromotingMemberId] = useState<string | null>(null);
@@ -67,9 +68,22 @@ const GroupMembersTable = ({
         setIsRemoveModalOpen(true);
     };
 
-    const handleRemoveSuccess = () => {
-        setSelectedMember(null);
-        onMemberRemoved?.();
+    const handleConfirmRemove = async () => {
+        if (!selectedMember) return;
+        setIsRemoving(true);
+        try {
+            await groupService.removeMember(groupId, selectedMember.handle);
+            toast.success(`"${selectedMember.nickname}" has been removed from the group.`);
+            onMemberRemoved?.();
+        } catch (error: any) {
+            console.error("Failed to remove member:", error);
+            const errorMessage = error?.response?.data?.message || "Failed to remove member. Please try again.";
+            toast.error(errorMessage);
+        } finally {
+            setIsRemoving(false);
+            setIsRemoveModalOpen(false);
+            setSelectedMember(null);
+        }
     };
 
     const handlePromote = async (member: Member) => {
@@ -135,9 +149,7 @@ const GroupMembersTable = ({
                                 <th className="text-left px-5 py-3 text-gray-500 font-semibold text-xs uppercase tracking-wide">
                                     Username
                                 </th>
-                                <th className="text-left px-5 py-3 text-gray-500 font-semibold text-xs uppercase tracking-wide">
-                                    Joined
-                                </th>
+                               
                                 {isLeader && (
                                     <th className="text-left px-5 py-3 text-gray-500 font-semibold text-xs uppercase tracking-wide">
                                         Actions
@@ -181,9 +193,7 @@ const GroupMembersTable = ({
                                         </td>
 
                                         {/* Joined Date */}
-                                        <td className="px-5 py-3 text-gray-400">
-                                            {member.joinedAt}
-                                        </td>
+                                       
 
                                         {/* Actions (leader only, not for self) */}
                                         {isLeader && (member.username !== currentUserId) && (
@@ -252,10 +262,10 @@ const GroupMembersTable = ({
                         setIsRemoveModalOpen(false);
                         setSelectedMember(null);
                     }}
-                    groupId={groupId}
                     memberHandle={selectedMember.handle}
                     memberNickname={selectedMember.nickname}
-                    onSuccess={handleRemoveSuccess}
+                    onConfirm={handleConfirmRemove}
+                    isRemoving={isRemoving}
                 />
             )}
         </>

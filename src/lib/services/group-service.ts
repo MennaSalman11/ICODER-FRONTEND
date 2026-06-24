@@ -50,7 +50,7 @@ export const groupService = {
 
     // حذف عضو
     removeMember: (groupId: number, handle: string) =>
-        apiClient.delete(`/groups/${groupId}/members?handle=${encodeURIComponent(handle)}`),
+    apiClient.delete(`/groups/${groupId}/members?userHandle=${encodeURIComponent(handle)}`),
     //promote member to manager
     promoteMember: (userHandle: string, groupId: number) =>
         apiClient.put("/groups/members/promote", {
@@ -81,8 +81,8 @@ export const groupService = {
         }),
 
     // جلب المجموعات الخاصة بالمستخدم
-    getMyGroups: () =>
-        apiClient.get<GroupResponse[]>("/groups/me"),
+    getMyGroups: (page = 0, size = 10): Promise<PageResponse<GroupResponse>> =>
+        apiClient.get<PageResponse<GroupResponse>>(`/groups/me?page=${page}&size=${size}`),
 
     updateGroupPicture: async (groupId: number, file: File) => {
         const formData = new FormData();

@@ -203,7 +203,7 @@ const CreateGroupModal = ({ isOpen, onClose, onSuccess }: CreateGroupModalProps)
                         {/* Description */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                Description
+                                Description <span className="text-red-500">*</span>
                             </label>
                             <textarea
                                 value={formData.description}
@@ -212,6 +212,7 @@ const CreateGroupModal = ({ isOpen, onClose, onSuccess }: CreateGroupModalProps)
                                 rows={3}
                                 placeholder="A brief introduction to your group (max 140 chars)..."
                                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1b4583] focus:border-transparent transition resize-none placeholder:text-gray-400"
+                                aria-required="true"
                             />
                             <p className="text-xs text-gray-400 text-right mt-1">
                                 {formData.description.length}/140

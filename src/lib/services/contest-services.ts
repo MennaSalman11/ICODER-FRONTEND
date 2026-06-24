@@ -1,5 +1,6 @@
 // src/lib/services/contest-services.ts
 import { SaveContestRequest } from '../../types/contest';
+import { SubmissionFilters, PaginatedSubmissionsResponse } from '../../types/contest';
 
 const API_BASE_URL = 'http://localhost:9090/api/v1/contests';
 
@@ -222,6 +223,62 @@ export const ContestService = {
     }
 
     return response.json(); // بترجع الـ JSON المتوقع { "message": "string" }
+  },
+
+  async getContestSubmissions(
+    contestId: string | number,
+    filters: SubmissionFilters,
+    token?: string
+  ): Promise<PaginatedSubmissionsResponse> {
+
+    const params = new URLSearchParams();
+
+    // 1. معالجة الـ Pagination (Spring Boot متوقع أرقام صريحة)
+    // إذا كانت الصفحة 0، نمررها صراحة ولا نعتبرها Falsy
+    if (filters.page !== undefined) params.append("page", filters.page.toString());
+    if (filters.size !== undefined) params.append("size", filters.size.toString());
+
+    // 2. معالجة الفلاتر الاختيارية (نرسلها فقط لو اليوزر كتب/اختار قيمة فعلاً)
+    if (filters.handle && filters.handle.trim() !== "") {
+      params.append("handle", filters.handle.trim());
+    }
+
+    // لو القيمة 'ALL' أو فاضية، متcumulativeش الـ param عشان الـ Backend ميقراش كلمة 'ALL' كـ Filter فعلي
+    if (filters.result && filters.result !== "ALL" && filters.result.trim() !== "") {
+      params.append("result", filters.result);
+    }
+
+    if (filters.language && filters.language !== "ALL" && filters.language.trim() !== "") {
+      params.append("language", filters.language);
+    }
+
+    if (filters.problem_id !== undefined && filters.problem_id !== "") {
+      params.append("problem_id", filters.problem_id.toString());
+    }
+
+    // 3. ⚠️ حـل أزمـة الـ 500 (الـ Sort):
+    // الـ Spring Boot بيفشل تماماً لو بعتنا sort فاضي أو ممسوح. 
+    // الأفضل نسيبه للـ Backend يحدد الـ default، أو نبعته فقط لو فيه قيمة حقيقية.
+    if (filters.sort && filters.sort.trim() !== "") {
+      params.append("sort", filters.sort);
+    }
+
+    // بناء الـ URL النهائي المستهدف
+    const url = `http://localhost:9090/api/v1/submissions/contests/${contestId}?${params.toString()}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      console.log(response);
+      throw new Error(`Failed to fetch contest submissions: HTTP ${response.status}`);
+    }
+
+    return await response.json();
   }
 
 

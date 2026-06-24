@@ -193,7 +193,7 @@ const UpdateGroupModal = ({ isOpen, onClose, onSuccess, groupId, initialData }: 
                                 Contest Coordinator
                             </label>
                             <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-                                {["LEADER", "LEADER_MANAGER", "ALL"].map((type) => (
+                                {["leader", "leader_manager", "all_members"].map((type) => (
                                     <button
                                         key={type}
                                         type="button"
@@ -203,7 +203,7 @@ const UpdateGroupModal = ({ isOpen, onClose, onSuccess, groupId, initialData }: 
                                             : "bg-white text-gray-600 hover:bg-gray-50"
                                             }`}
                                     >
-                                        {type === "LEADER" ? "Leader" : type === "LEADER_MANAGER" ? "Leader & Manager" : "All Members"}
+                                        {type === "leader" ? "Leader" : type === "leader_manager" ? "Leader & Manager" : "All Members"}
                                     </button>
                                 ))}
                             </div>

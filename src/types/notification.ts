@@ -5,8 +5,8 @@ export interface NotificationResponse {
     message: string;
     type: string;
     read: boolean;
-    createdAt: string;
-    referenceId?: number;
+    created_at: string;
+    reference_id?: number;
     action_url?: string;
 }
 

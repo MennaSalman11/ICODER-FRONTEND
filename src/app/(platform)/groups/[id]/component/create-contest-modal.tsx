@@ -12,7 +12,7 @@ import { group } from "console";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type JudgeType = "CODEFORCES" | "CSES" | "V_JUDGE";
+type JudgeType = "CODEFORCES" | "CSES" | "ATCODER";
 type VerifyStatus = "idle" | "loading" | "success" | "error";
 
 /** Local UI row — maps to ProblemSetItem on submit */
@@ -217,13 +217,33 @@ const CreateContestModal = ({ isOpen, onClose, onSuccess }: CreateContestModalPr
             onSuccess?.(result);
             onClose();
             resetForm();
-        } catch (error: any) {
-            const msg = error?.message ?? "Failed to create contest. Please try again.";
-            toast.error(msg);
-            console.log("error", error);
-        } finally {
-            setIsSubmitting(false);
         }
+        catch (error: any) {
+    let msg = "Failed to create contest. Please try again.";
+    
+    if (error?.message) {
+        // نحاول استخراج الجزء الخاص بالـ JSON إذا كان موجوداً
+        const jsonStartIndex = error.message.indexOf("{");
+        if (jsonStartIndex !== -1) {
+            try {
+                const jsonString = error.message.substring(jsonStartIndex);
+                const errorObj = JSON.parse(jsonString);
+                msg = errorObj.message || msg; // استخراج الرسالة النظيفة
+            } catch (e) {
+                // لو الـ JSON parse فشل لأي سبب، نرجع للرسالة الأصلية
+                msg = error.message;
+            }
+        } else {
+            msg = error.message;
+        }
+    }
+
+    // الآن الـ Toast والـ Console هيطلعوا الرسالة النظيفة فقط ✨
+    toast.error(msg);
+    console.log("error", msg);
+} finally {
+    setIsSubmitting(false);
+}
     };
 
     if (!isOpen) return null;
@@ -441,7 +461,7 @@ const CreateContestModal = ({ isOpen, onClose, onSuccess }: CreateContestModalPr
                                                     >
                                                         <option value="CODEFORCES">CODEFORCES</option>
                                                         <option value="CSES">CSES</option>
-                                                        <option value="V_JUDGE">V_JUDGE</option>
+                                                        <option value="ATCODER">ATCODER</option>
                                                     </select>
 
                                                     {/* Problem Code Input */}
