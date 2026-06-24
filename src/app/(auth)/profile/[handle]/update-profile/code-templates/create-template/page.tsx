@@ -26,7 +26,7 @@ type TemplateFormData = z.infer<typeof templateSchema>;
 export default function CreateTemplatePage() {
   const { data: session } = useSession();
   const { languages , selectedLanguage} = useProblem();
-  const { setPage } = useTemplateContext(); // بنحتاجه عشان الـ refresh
+const { setPage, refetchTemplates } = useTemplateContext();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -42,38 +42,35 @@ export default function CreateTemplatePage() {
 const selectedLanguageId = watch("language_id");
 const currentLanguage = languages.find(lang => lang.id === (selectedLanguageId));
   const onSubmit = async (data: TemplateFormData) => {
-    const token = (session as any)?.accessToken;
+  const token = (session as any)?.accessToken;
 
-    if (!token) {
-      toast.error("no token found, please login again");
-      return;
-    }
+  if (!token) {
+    toast.error("no token found, please login again");
+    return;
+  }
 
-    try {
-      setIsLoading(true);
-      
-      const Payload = {
-        template_name: data.template_name,
-        language_id: Number(data.language_id), 
-        code: data.code,
-        created_and_updated_at: new Date().toISOString()
-      };
+  try {
+    setIsLoading(true);
 
-      await createTemplate(Payload, token);
-      
-      toast.success("Template created successfully");
-      
-      setPage(0); 
-            setTimeout(() => router.push('./'), 1500);
+    const Payload = {
+      template_name: data.template_name,
+      language_id: Number(data.language_id),
+      code: data.code,
+      created_and_updated_at: new Date().toISOString()
+    };
 
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to create template");
-    } finally {
-      setIsLoading(false);
-    }
-   
-  };
+    await createTemplate(Payload, token);
+    toast.success("Template created successfully");
+    await refetchTemplates();
+    router.push('./');
+
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to create template");
+  } finally {
+    setIsLoading(false);
+  }
+};
 const onInvalid = (errors: any) => {
   if (errors.template_name) toast.error(errors.template_name.message);
   else if (errors.language_id) toast.error(errors.language_id.message);
@@ -107,7 +104,7 @@ router.back();
                 <ChevronRight className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                 <input 
                   {...register("template_name")}
-                  placeholder="e.g. React Functional Component"
+                  placeholder="Template Name"
                   className={`w-full pl-12 pr-4 py-3 bg-white border ${errors.template_name ? 'border-red-500' : 'border-slate-200'} rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all`}
                 />
               </div>

@@ -19,7 +19,6 @@ export default function SubmissionsPage() {
     const loadSubmissions = async () => {
       try {
         setLoading(true);
-        // 2. استخدام currentPage هنا ليتم جلب الصفحة الصحيحة
         const data = await getSubmissions({ page: currentPage, size: 20, problem_code: problemCode });
         setSubmissions(data.content);
       } catch (err) {
@@ -29,7 +28,7 @@ export default function SubmissionsPage() {
       }
     };
     loadSubmissions();
-  }, [problemCode, currentPage]); // 3. إضافة currentPage هنا لتتحدث البيانات عند تغيير الصفحة
+  }, [problemCode, currentPage]);
 
   if (loading && submissions.length === 0) 
     return <div className="p-8 text-center animate-pulse">Loading submissions...</div>;
@@ -39,9 +38,7 @@ export default function SubmissionsPage() {
       <SubmissionsTable 
         submissions={submissions} 
         loading={loading} 
-        // 4. تمرير الدالة الصحيحة التي تغير الـ state
         onPageChange={(page) => setCurrentPage(page)} 
-        // 5. تمرير الـ state الحالي
         currentPage={currentPage} 
       />
     </div>

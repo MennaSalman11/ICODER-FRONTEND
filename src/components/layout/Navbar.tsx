@@ -14,7 +14,7 @@ import {
   Trash2,
   CheckCheck,
 } from "lucide-react";
-
+import { Logo } from "@/components/ui/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +31,7 @@ import { signOut, useSession } from "next-auth/react";
 import { notificationService } from "../../lib/services/notification-service";
 import { NotificationResponse } from "../../types/notification";
 import { getProfilePicture } from "@/src/lib/services/profile.services";
+import { useUserContext } from "../context/UserContext";
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
@@ -234,86 +235,124 @@ const NotificationDropdown: React.FC = () => {
 // ─── Navbar ─────────────────────────────────────────────────────────────────
 
 const Navbar = () => {
+
   const { data: session, status } = useSession();
-  const [userImage, setUserImage] = useState<string | null>(null);
- const pathname = usePathname();
-  const isAuthPage = pathname === "/login" || pathname === "/register";
-  useEffect(() => {
-  const fetchUserImage = async () => {
-    const handle = session?.user?.handle;
+  // const [userImage, setUserImage] = useState<string | null>(null);
+  const pathname = usePathname();  
+  const [scrolled, setScrolled] = useState(false);
+const { profilePicture } = useUserContext();
+console.log("Navbar sees profilePicture:", profilePicture);
 
-    if (!handle) return;
+const [mounted, setMounted] = useState(false);
 
-    const res = await getProfilePicture(handle);
+useEffect(() => {
+  setMounted(true);
+}, []);
 
-    console.log("Navbar Picture:", res.data);
+const isDarkNavbar = !mounted || status !== "authenticated";
+  const navLinkClass = isDarkNavbar
+    ? "text-white/75 hover:text-white"
+    : "text-slate-500 hover:text-blue-600";
 
-    if (res.ok && res.data?.picture_url) {
-      setUserImage(res.data.picture_url);
-    }
+  const navIconClass = isDarkNavbar
+    ? "text-white/50 group-hover:text-white/80"
+    : "text-slate-400 group-hover:text-blue-500";
+useEffect(() => {
+  const onScroll = () => {
+    setScrolled(window.scrollY > 20);
   };
 
-  if (status === "authenticated") {
-    fetchUserImage();
-  }
-}, [status, session]);
+  onScroll();
+  window.addEventListener("scroll", onScroll);
+  return () => window.removeEventListener("scroll", onScroll);
+}, []);
+
 
   return (
-   <header className={`fixed top-0 left-0 w-full z-50 border-b transition-colors ${
-      isAuthPage 
-        ? "bg-transparent border-transparent"  // ← شفاف في اللوجن
-        : "bg-white border-slate-100"           // ← أبيض في باقي الصفحات
-    }`}>      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-
+<header
+  className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+    isDarkNavbar
+      ? scrolled
+        ? "bg-[#081122]/80 backdrop-blur-xl border-b border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]"
+        : "bg-transparent border-b border-white/6"
+      : scrolled
+      ? "bg-white/90 backdrop-blur-xl border-b border-slate-200 shadow-sm"
+      : "bg-white border-b border-slate-100"
+  }`}
+>
+<div className="container mx-auto px-4 lg:px-8 h-[74px] flex items-center justify-between">
         {/* Left Side: Logo & Main Nav */}
         <div className="flex items-center gap-10">
-          <Link href="/" className="flex items-center gap-2">
-            {/* Logo Wrapper */}
-            <div className="flex items-center gap-1.5">
-               {/* <div className="w-5 h-7 bg-[#1e3a8a] rounded-[2px] relative overflow-hidden">
-                  <div className="absolute bottom-0 w-full h-1/2 bg-[#ef4444]"></div>
-               </div> */}
-<span className={`text-2xl font-bold tracking-tight ${
-  isAuthPage ? "text-white" : "text-[#0f172a]"
-}`}>ICoder</span>
-            </div>
-          </Link>
+         <Link href="/" className="flex items-center gap-1 font-bold text-xxlg">
+  <Logo dark={isDarkNavbar} scale={0.8} /> 
+</Link>
 
           {/* Navigation Links (Desktop) */}
           {status === "authenticated" && (
-            <nav className="hidden md:flex items-center gap-7">
-              <Link href="/problems" className="text-slate-500 hover:text-blue-600 font-medium transition text-[14px] flex items-center gap-2">
-                <FileText size={18} className="text-slate-400" /> Problems
-              </Link>
-              <Link href="/contests" className="text-slate-500 hover:text-blue-600 font-medium transition text-[14px] flex items-center gap-2">
-                <Trophy size={18} className="text-slate-400" /> Contests
-              </Link>
-              <Link href="/submissions" className="text-slate-500 hover:text-blue-600 font-medium transition text-[14px] flex items-center gap-2">
-                <BarChart2 size={18} className="text-slate-400" /> Submissions
-              </Link>
-              <Link href="/groups" className="text-slate-500 hover:text-blue-600 font-medium transition text-[14px] flex items-center gap-2">
-                <Users size={18} className="text-slate-400" /> Groups
-              </Link>
-            </nav>
+          <nav className="hidden md:flex items-center gap-7">
+  <Link
+    href="/problems"
+    className={`group font-medium transition text-[14px] flex items-center gap-2 ${navLinkClass}`}
+  >
+    <FileText size={18} className={`transition ${navIconClass}`} />
+    Problems
+  </Link>
+
+  <Link
+    href="/contests"
+    className={`group font-medium transition text-[14px] flex items-center gap-2 ${navLinkClass}`}
+  >
+    <Trophy size={18} className={`transition ${navIconClass}`} />
+    Contests
+  </Link>
+
+  <Link
+    href="/submissions"
+    className={`group font-medium transition text-[14px] flex items-center gap-2 ${navLinkClass}`}
+  >
+    <BarChart2 size={18} className={`transition ${navIconClass}`} />
+    Submissions
+  </Link>
+
+  <Link
+    href="/groups"
+    className={`group font-medium transition text-[14px] flex items-center gap-2 ${navLinkClass}`}
+  >
+    <Users size={18} className={`transition ${navIconClass}`} />
+    Groups
+  </Link>
+</nav>
           )}
         </div>
 
         {/* Right Side: Actions */}
         <div className="flex items-center gap-3">
           {status === "unauthenticated" ? (
-            <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" className={isAuthPage ? "text-white font-semibold" : "text-slate-600 font-semibold"}>
-  <Link href="/login">Login</Link>
-</Button>
+  <div className="flex items-center gap-3">
+    <Button
+      asChild
+      variant="ghost"
+      className={
+        isDarkNavbar
+          ? "text-white/90 hover:text-white hover:bg-white/10 font-semibold rounded-xl"
+          : "text-slate-600 hover:text-slate-900 font-semibold rounded-xl"
+      }
+    >
+      <Link href="/login">Login</Link>
+    </Button>
 
-<Button asChild className={isAuthPage 
-  ? "bg-orange-500 hover:bg-orange-600 text-white px-5 rounded-lg font-semibold" 
-  : "bg-[#1e3a8a] hover:bg-blue-800 text-white px-5 rounded-lg font-semibold shadow-sm"
-}>
-  <Link href="/register">Sign Up</Link>
-</Button>
-            </div>
-          ) : status === "authenticated" ? (
+    <Button
+      asChild
+      className={
+        isDarkNavbar
+          ? "bg-orange-500 hover:bg-orange-600 text-white px-5 rounded-xl font-semibold shadow-[0_10px_30px_rgba(249,115,22,0.35)]"
+          : "bg-[#1e3a8a] hover:bg-blue-800 text-white px-5 rounded-xl font-semibold shadow-sm"
+      }
+    >
+      <Link href="/register">Sign Up</Link>
+    </Button>
+  </div>
+) : status === "authenticated" ? (
             <div className="flex items-center gap-4">
               {/* Notification Bell + Dropdown */}
               <NotificationDropdown />
@@ -321,16 +360,30 @@ const Navbar = () => {
               {/* User Profile Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 group outline-none">
-                    <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
-                    {userImage ? (
-  <img src={userImage} alt="User" className="w-full h-full object-cover" />
-) : (
-  <User size={20} className="text-slate-400" />
-)}
-                    </div>
-                    <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition" />
-                  </button>
+               <button className="flex items-center gap-2 group outline-none">
+  <div
+    className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border transition ${
+      isDarkNavbar
+        ? "bg-white/10 border-white/15"
+        : "bg-slate-100 border-slate-200"
+    }`}
+  >
+     {profilePicture ? (
+    <img src={profilePicture} alt="User" className="w-full h-full object-cover" />
+  ) : (
+    <User size={20} />
+  )}
+  </div>
+
+  <ChevronDown
+    size={14}
+    className={`transition ${
+      isDarkNavbar
+        ? "text-white/60 group-hover:text-white"
+        : "text-slate-400 group-hover:text-slate-600"
+    }`}
+  />
+</button>
                 </DropdownMenuTrigger>
 
                 <DropdownMenuContent align="end" className="w-52 mt-2 p-1.5 rounded-xl shadow-lg border-slate-100">

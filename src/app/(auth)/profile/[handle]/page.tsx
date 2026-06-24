@@ -4,11 +4,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react"; 
 import { getProfile, getProfilePicture } from "@/src/lib/services/profile.services";
-
-// استيراد الخدمة الرئيسية المحدثة
+import ReactMarkdown from 'react-markdown';
 import { getRawStats } from "@/src/lib/services/SummaryAi.services"; 
 
-// 🎯 استيراد الأيقونات المتوافقة 100% مع الإصدار v3 في مشروعكِ
 import { 
   FaUser as FaUserIcon, 
   FaCode, 
@@ -17,7 +15,7 @@ import {
   FaTimesCircle,       
   FaClock, 
   FaExclamationTriangle, 
-  FaChartLine,          // تم تعديل الاسم هنا ليطابق الحزمة لديكِ وعرض الرسم البياني
+  FaChartLine,          
   FaMagic,              
   FaBullseye,
   FaEdit               
@@ -31,7 +29,6 @@ export default function ProfilePage() {
   const handleFromUrl = params.handle; 
   const [userData, setUserData] = useState<any>(null);
 
-  // قراءة بيانات السيشن
   const { data: session } = useSession();
   const userId = (session?.user as any)?.numericId;
 
@@ -104,7 +101,7 @@ console.log("Picture:", pictureRes.data);
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       
-      {/* سيكشن البروفايل الرئيسي */}
+      {/*main content*/}
       <section className="pt-24 px-4"> 
         <div className="max-w-7xl mx-auto rounded-xl shadow-md p-6 flex justify-between items-center bg-white">
           
@@ -145,12 +142,12 @@ console.log("Picture:", pictureRes.data);
         </div>
       </section>
 
-      {/* سيكشن الهيت ماب */}
+      {/* heatmap section */}
       <section className="pt-12 px-4 max-w-7xl mx-auto">
         <ActivityHeatmap />
       </section>
 
-      {/* نافذة الـ Progress Analysis المنبثقة */}
+      {/*analysis modal*/}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="bg-[#F8F9FA] border border-gray-200 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -267,7 +264,7 @@ console.log("Picture:", pictureRes.data);
                     </div>
                   </div>
 
-                  {/* سيكشن الـ Strengths & Areas to Improve */}
+                  {/* Strengths & Areas to Improve */}
                   <div className="space-y-4 pt-2">
                     <div>
                       <h4 className="text-sm font-bold text-green-600 flex items-center gap-1.5 mb-2">
@@ -306,7 +303,7 @@ console.log("Picture:", pictureRes.data);
                 </>
               ) : null}
 
-              {/* سيكشن الـ AI Summary المنسدل */}
+              {/* AI Summary section */}
               <div className="pt-4 flex flex-col items-center border-t border-gray-100">
                 <button
                   onClick={handleToggleAiSummary}
@@ -323,9 +320,9 @@ console.log("Picture:", pictureRes.data);
                     <div className="flex items-center gap-1.5 font-bold text-[#FF7A38] mb-3 text-sm">
                       <FaMagic /> AI Coaching Summary
                     </div>
-                    <p className="whitespace-pre-line text-left text-gray-600 font-normal">
-                      {aiSummaryText}
-                    </p>
+                   <div className="prose prose-sm max-w-none text-left text-gray-600">
+  <ReactMarkdown>{aiSummaryText}</ReactMarkdown>
+</div>
                   </div>
                 )}
               </div>

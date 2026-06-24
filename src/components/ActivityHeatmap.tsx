@@ -1,3 +1,4 @@
+// ActivityHeatmap.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,18 +12,20 @@ import {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 
-// تكبير الحجم والمسافات لتأخذ الخلايا مساحة الكارت بالكامل بشكل مريح
-const CELL = 14; 
+const CELL = 14;
 const GAP = 4;
 const LABEL_W = 32;
 const HEADER_H = 20;
 
 function getCellColor(accepted: number, attempted: number): string {
-  if (accepted === 0 && attempted === 0) return "#EBEDF0";
-  if (accepted === 0 && attempted > 0) return "#FECACA"; // حاول بس غلط (أحمر فاتح)
-  if (accepted === 1) return "#9BE9A8"; // أخضر فاتح
-  if (accepted === 2) return "#40C463"; // أخضر متوسط
-  return "#216E39"; // أخضر غامق (3 أو أكثر)
+  const acc = Number(accepted);
+  const att = Number(attempted);
+
+  if (acc === 0 && att === 0) return "#EBEDF0";
+  if (acc === 0 && att > 0) return "#FECACA";
+  if (acc === 1) return "#9BE9A8";
+  if (acc === 2) return "#40C463";
+  return "#216E39";
 }
 
 interface GridDay {
@@ -57,8 +60,8 @@ function buildYearWeeks(
       const entry = dataMap[dateStr];
       week.push({
         date: dateStr,
-        accepted: entry?.accepted_count ?? 0,
-        attempted: entry?.attempted_count ?? 0,
+        accepted: Number(entry?.accepted_count ?? 0), // ✅
+        attempted: Number(entry?.attempted_count ?? 0), // ✅
       });
       const month = cursor.getMonth();
       if (d === 0 && month !== currentMonth && cursor.getFullYear() === year) {
@@ -100,7 +103,6 @@ function YearGrid({
           height={HEADER_H + gridHeight}
           className="block select-none w-full"
         >
-          {/* Month labels */}
           {monthLabels.map((m, idx) => (
             <text
               key={`${m.label}-${idx}`}
@@ -112,7 +114,6 @@ function YearGrid({
             </text>
           ))}
 
-          {/* Day labels */}
           {DAY_LABELS.map((d, i) =>
             d ? (
               <text
@@ -126,7 +127,6 @@ function YearGrid({
             ) : null
           )}
 
-          {/* Cells */}
           {weeks.map((week, wIdx) =>
             week.map((day, dIdx) => (
               <rect
@@ -136,7 +136,7 @@ function YearGrid({
                 width={CELL}
                 height={CELL}
                 rx={2.5}
-                fill={getCellColor(day.accepted, day.attempted)}
+                fill={getCellColor(Number(day.accepted), Number(day.attempted))} // ✅
                 className="transition-all duration-150 hover:stroke-gray-400 hover:stroke-[1px]"
                 style={{ cursor: "pointer" }}
                 onMouseEnter={(e) => {
@@ -177,8 +177,7 @@ export default function ActivityHeatmap() {
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [dataMap, setDataMap] = useState<Record<string, ActivityGridDay>>({});
   const [loading, setLoading] = useState(true);
-  
-  // تحديد السنة الحالية ديناميكياً لتجنب مشاكل الـ Hydration
+
   const [activeYear, setActiveYear] = useState<number>(2026);
   const [currentYear, setCurrentYear] = useState<number>(2026);
   const [prevYear, setPrevYear] = useState<number>(2025);
@@ -186,64 +185,47 @@ export default function ActivityHeatmap() {
   const [totalSolved, setTotalSolved] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
 
-useEffect(() => {
-  const cYear = new Date().getFullYear();
-  const pYear = cYear - 1;
-  setCurrentYear(cYear);
-  setPrevYear(pYear);
-  setActiveYear(cYear);
+  useEffect(() => {
+    const cYear = new Date().getFullYear();
+    const pYear = cYear - 1;
+    setCurrentYear(cYear);
+    setPrevYear(pYear);
+    setActiveYear(cYear);
 
-  setLoading(true);
-  Promise.all([
-    getActivityStreak("UTC"),
-    getActivityGrid(cYear, "UTC"),
-    getActivityGrid(pYear, "UTC"),
-  ])
-    .then(([streak, currGrid, prevGrid]) => {
-      
-      // ─── الـ LOGS لرؤية الداتا الراجعة من الباك ───
-      console.log("=== DATA FROM BACKEND ===");
-      console.log("1. Streak Data:", streak);
-      console.log(`2. Grid Data for Current Year (${cYear}):`, currGrid);
-      console.log(`3. Grid Data for Previous Year (${pYear}):`, prevGrid);
-      console.log("=================================");
+    setLoading(true);
+    Promise.all([
+      getActivityStreak("UTC"),
+      getActivityGrid(cYear, "UTC"),
+      getActivityGrid(pYear, "UTC"),
+    ])
+      .then(([streak, currGrid, prevGrid]) => {
+        setStreakData(streak);
 
-      setStreakData(streak);
-      
-      const map: Record<string, ActivityGridDay> = {};
-      let solvedSum = 0;
-      let attemptsSum = 0;
+        const map: Record<string, ActivityGridDay> = {};
+        let solvedSum = 0;
+        let attemptsSum = 0;
 
-      // دمج وحساب الإحصائيات من الـ API مباشرة لآخر سنتين
-  [...currGrid, ...prevGrid].forEach((d) => {
-  map[d.date] = d;
-  
-  // استخدام Number() هنا يحول '3' إلى 3 و '14' إلى 14 ويجمعهم جمعاً رياضياً صحيحاً
-  solvedSum += Number(d.accepted_count ?? 0);
-  attemptsSum += Number(d.attempted_count ?? 0);
-});
+        [...currGrid, ...prevGrid].forEach((d) => {
+          map[d.date] = d;
+          solvedSum += Number(d.accepted_count ?? 0);
+          attemptsSum += Number(d.attempted_count ?? 0);
+        });
 
-      // لوج إضافي للتأكد من المجموع النهائي بعد الحساب التراكمي
-      console.log("=== CALCULATED STATS ===");
-      console.log("Total Solved Sum:", solvedSum);
-      console.log("Total Attempts Sum:", attemptsSum);
-      console.log("=================================");
-
-      setDataMap(map);
-      setTotalSolved(solvedSum);
-      setTotalAttempts(attemptsSum);
-    })
-    .catch((err) => console.error("Fetch error:", err))
-    .finally(() => setLoading(false));
-}, []);
+        setDataMap(map);
+        setTotalSolved(solvedSum);
+        setTotalAttempts(attemptsSum);
+      })
+      .catch((err) => console.error("Fetch error:", err))
+      .finally(() => setLoading(false));
+  }, []);
 
   const currentStreak = streakData?.current_streak ?? 0;
   const maxStreak = streakData?.max_streak ?? 0;
 
   return (
     <div className="flex flex-col md:flex-row gap-4 items-stretch w-full font-sans">
-      
-      {/* ── Stats Card ── */}
+
+      {/* Stats Card */}
       <div className="w-full md:w-[210px] shrink-0 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-5 flex flex-col justify-between shadow-xs">
         <div>
           <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
@@ -290,10 +272,9 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* ── Heatmap Card ── */}
+      {/* Heatmap Card */}
       <div className="flex-1 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-5 flex flex-col gap-4 shadow-xs">
-        
-        {/* Header & Legend */}
+
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-gray-100 dark:border-gray-900 pb-3">
           <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
             Problem Solving Activity
@@ -304,13 +285,7 @@ useEffect(() => {
               <div
                 key={color}
                 className="border border-black/5 dark:border-white/5"
-                style={{
-                  width: 11,
-                  height: 11,
-                  borderRadius: 2,
-                  backgroundColor: color,
-                  flexShrink: 0,
-                }}
+                style={{ width: 11, height: 11, borderRadius: 2, backgroundColor: color, flexShrink: 0 }}
               />
             ))}
             <span>More</span>
@@ -323,15 +298,10 @@ useEffect(() => {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            
             <div className="flex gap-4 items-start relative">
-              
-              {/* الـ Grid الأساسي وتوسيع مساحته */}
               <div className="flex-1 min-w-0 transition-opacity duration-300">
                 <YearGrid year={activeYear} dataMap={dataMap} />
               </div>
-
-              {/* أزرار اختيار السنة جهة اليمين عمودياً لتعويض مكان النص القديم */}
               <div className="flex flex-col gap-1.5 bg-gray-50 dark:bg-gray-900 p-1 rounded-lg shrink-0 border border-gray-100 dark:border-gray-800/50 mt-5">
                 {[currentYear, prevYear].map((year) => (
                   <button
@@ -348,7 +318,6 @@ useEffect(() => {
                   </button>
                 ))}
               </div>
-
             </div>
           </div>
         )}

@@ -13,7 +13,18 @@ import { toast } from 'sonner';
 import { deleteTemplate, getTemplateById, toggleTemplateStatus } from '@/src/lib/services/templates.services';
 
 export default function CodeTemplatePage() {
-  const { page, setPage, templates,setTemplates, setSelectedTemplate, loading } = useTemplateContext();
+const {
+  page,
+  setPage,
+  templates,
+  setTemplates,
+  setSelectedTemplate,
+  loading,
+  totalPages,
+  isFirstPage,
+  isLastPage,
+  refetchTemplates
+} = useTemplateContext();
   const router = useRouter();
   // States for delete
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -47,19 +58,19 @@ const handleViewDetails = async (id: number) => {
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (idToDelete) {
-      try {
-        await deleteTemplate(idToDelete);
-        toast.success("Template deleted successfully");
-        setIsDeleteDialogOpen(false);
-        router.refresh(); 
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to delete template");
-      }
+const confirmDelete = async () => {
+  if (idToDelete) {
+    try {
+      await deleteTemplate(idToDelete);
+      toast.success("Template deleted successfully");
+      setIsDeleteDialogOpen(false);
+      await refetchTemplates();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete template");
     }
-  };
+  }
+};
 
 const handleToggle = async (id: number, force: boolean) => {
   try {
@@ -198,28 +209,37 @@ const handleToggle = async (id: number, force: boolean) => {
             </table> 
           </div>
 
-          {/* Pagination */}
-          {!loading && templates.length > 0 && (
-            <div className="flex items-center gap-2 mt-8">
-              <Button 
-                variant="ghost" 
-                onClick={() => setPage(Math.max(0, page - 1))}
-                className="text-slate-500 font-bold hover:bg-slate-100 px-3"
-              >
-                <ChevronLeft size={16} className="mr-1"/> Prev
-              </Button>
-              <Button className="bg-[#1e3a8a] hover:bg-blue-900 w-10 h-10 rounded-xl shadow-md shadow-blue-100">
-                {page + 1}
-              </Button>
-              <Button 
-                variant="ghost" 
-                onClick={() => setPage(page + 1)}
-                className="text-slate-900 font-bold hover:bg-slate-100 px-3"
-              >
-                Next <ChevronRight size={16} className="ml-1"/>
-              </Button>
-            </div>
-          )}
+         {/* Pagination */}
+{!loading && templates.length > 0 && totalPages > 1 && (
+  <div className="flex items-center gap-2 mt-8">
+    <Button
+      variant="ghost"
+      disabled={isFirstPage}
+      onClick={() => !isFirstPage && setPage(page - 1)}
+      className="text-slate-500 font-bold hover:bg-slate-100 px-3 disabled:opacity-40 disabled:pointer-events-none"
+    >
+      <ChevronLeft size={16} className="mr-1" /> Prev
+    </Button>
+
+    <Button
+      disabled
+      className="bg-[#1e3a8a] hover:bg-blue-900 min-w-10 h-10 rounded-xl shadow-md shadow-blue-100 disabled:opacity-100 text-white"
+    >
+      {page + 1}
+    </Button>
+
+    <span className="text-sm text-slate-400 px-1">of {totalPages}</span>
+
+    <Button
+      variant="ghost"
+      disabled={isLastPage}
+      onClick={() => !isLastPage && setPage(page + 1)}
+      className="text-slate-900 font-bold hover:bg-slate-100 px-3 disabled:opacity-40 disabled:pointer-events-none"
+    >
+      Next <ChevronRight size={16} className="ml-1" />
+    </Button>
+  </div>
+)}
         </div>
       </div>
 

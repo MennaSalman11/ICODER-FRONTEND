@@ -59,8 +59,7 @@ const SubmitProblemPage = ({ onSuccess }: SubmitProblemProps) => {
   const activeSubmissionId = useRef<number | null>(null);
   const eventSourceRef = useRef<(() => void) | null>(null);
 let globalActiveSubmissionId: number | null = null;
-  // الـ meta بيجي من الـ POST response ويتحفظ في ref
-  // عشان الـ SSE callback يقدر يوصله حتى بعد Fast Refresh
+ 
   const submissionMetaRef = useRef<{
     lang: string;
     submittedAt: string;
@@ -111,7 +110,7 @@ let globalActiveSubmissionId: number | null = null;
     submittedAt?: string;
   } | null>(null);
 
-// ─── فتح الـ SSE عند mount ────────────────────────────────────────────────
+// ─── SSE mount ────────────────────────────────────────────────
 useEffect(() => {
   const tokenString =
     (session?.accessToken as string) || (session?.user?.accessToken as string);
@@ -139,7 +138,6 @@ if (activeId !== null && receivedId !== activeId) {
   console.log("⏭️ Ignored submission stream for other ID");
   return;
 }
-      // sync الـ ref لو اتعمل remount وبقى null
       if (activeSubmissionId.current === null && activeId !== null) {
         activeSubmissionId.current = activeId;
       }
@@ -298,6 +296,72 @@ case "PENDING":
   };
 
   // ─── Submit code ───────────────────────────────────────────────────────────
+//   const onSubmitCode = async (data: SubmissionFormValues) => {
+//     console.log("Submit clicked, data:", data);
+//     if (submissionMethod === "SESSION" && !accountSession) {
+//       toast.error("Please configure your account Session ID first.");
+//       return;
+//     }
+
+//     const toastId = toast.loading("Processing your submission...");
+
+//     try {
+//       const userId = session?.user?.numericId ? Number(session.user.numericId) : null;
+//       if (!userId) {
+//         toast.error("Please log in to submit your solution.", { id: toastId });
+//         return;
+//       }
+
+//       const payload = {
+//         user_id: userId,
+//         problem_code: (params?.code || data.problem_code) as string,
+//         code: data.code,
+//         language: data.language,
+//         online_judge: ((params?.judge as string) || data.online_judge).toUpperCase(),
+//         opened: data.opened,
+//         submission_method: data.submission_method,
+//         contest_id: contestId || null,
+//       };
+
+//       const response = await submitCodeSolution(payload);
+
+//       if (response?.id) {
+//         // ① حفظ كل الـ meta من الـ POST response في ref
+//         // الـ SSE هيجيب verdict بس، والباقي هييجي من هنا
+//         submissionMetaRef.current = {
+//           lang: payload.language,
+//           submittedAt: response.submittedAt
+//             ? new Date(response.submittedAt).toLocaleString()
+//             : "Just now",
+//           time: `${response.timeUsage ?? 0}ms`,
+//           length: `${response.memoryUsage ?? 0} KB`,
+//         };
+
+//         // ② سيت الـ ID عشان الـ SSE callback يعرف يفلتر
+// activeSubmissionId.current = response.id;
+// globalActiveSubmissionId = response.id;
+// sessionStorage.setItem("activeSubmissionId", String(response.id));
+//         // ③ عرض الحالة الأولية من الـ POST response
+//         setCreatedSubmissionId(response.id);
+//         setSubmissionResult({
+//           status: (response.status || "CREATED").toUpperCase(),
+//           time: `${response.timeUsage ?? 0}ms`,
+//           length: `${response.memoryUsage ?? 0} KB`,
+//           lang: payload.language,
+//           submittedAt: response.submittedAt
+//             ? new Date(response.submittedAt).toLocaleString()
+//             : "Just now",
+//         });
+
+//         toast.success("Solution pushed! Waiting for verdict...", { id: toastId });
+//         onSuccess?.();
+//       }
+//     } catch (err: any) {
+//       console.error(err);
+//       toast.error(err?.message || "An error occurred during submission", { id: toastId });
+//     }
+//   };
+// ─── Submit code ───────────────────────────────────────────────────────────
   const onSubmitCode = async (data: SubmissionFormValues) => {
     console.log("Submit clicked, data:", data);
     if (submissionMethod === "SESSION" && !accountSession) {
@@ -328,8 +392,9 @@ case "PENDING":
       const response = await submitCodeSolution(payload);
 
       if (response?.id) {
-        // ① حفظ كل الـ meta من الـ POST response في ref
-        // الـ SSE هيجيب verdict بس، والباقي هييجي من هنا
+        // ✅ حفظ الكود في localStorage هنا في الـ client
+        localStorage.setItem(`submission_code_${response.id}`, data.code);
+
         submissionMetaRef.current = {
           lang: payload.language,
           submittedAt: response.submittedAt
@@ -339,11 +404,10 @@ case "PENDING":
           length: `${response.memoryUsage ?? 0} KB`,
         };
 
-        // ② سيت الـ ID عشان الـ SSE callback يعرف يفلتر
-activeSubmissionId.current = response.id;
-globalActiveSubmissionId = response.id;
-sessionStorage.setItem("activeSubmissionId", String(response.id));
-        // ③ عرض الحالة الأولية من الـ POST response
+        activeSubmissionId.current = response.id;
+        globalActiveSubmissionId = response.id;
+        sessionStorage.setItem("activeSubmissionId", String(response.id));
+
         setCreatedSubmissionId(response.id);
         setSubmissionResult({
           status: (response.status || "CREATED").toUpperCase(),
@@ -363,7 +427,6 @@ sessionStorage.setItem("activeSubmissionId", String(response.id));
       toast.error(err?.message || "An error occurred during submission", { id: toastId });
     }
   };
-
   // ─── Save cookie ───────────────────────────────────────────────────────────
   const handleSaveCookie = async () => {
     if (!cookieValue.trim()) return;

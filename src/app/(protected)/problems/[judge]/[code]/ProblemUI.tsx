@@ -41,7 +41,10 @@ export default function ProblemUI({ data }: { data: any }) {
     selectedLanguage,
     changeLanguage,
     sourceCode,
-    setSourceCode
+    setSourceCode,
+    saveCodeForProblem,
+    getSavedCodeForProblem,
+    clearSavedCodeForProblem,
   } = useProblem();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -219,45 +222,67 @@ useEffect(() => {
     }
   };
 
-  // ✨ التعديل وإضافة الحماية هنا لمنع الـ 500 Error عند تحميل الـ Template الافتراضي
-useEffect(() => {
-  // 1. إذا لم تكن المكونات جاهزة، لا تفعل شيئاً
-  if (!isMounted || !selectedLanguage) return;
+  // 🆕 الـ useEffect الرئيسي: يتشيك أول حاجة على الكود المحفوظ محليًا
+  // (problem_code + selectedLanguage) قبل ما يروح يجيب التمبلت من السيرفر.
+  // لو فيه كود محفوظ (سواء كتبه المستخدم أو كان تمبلت قديم) يستخدمه ويوقف.
+  useEffect(() => {
+    if (!isMounted || !selectedLanguage || !currentData?.problem_code) return;
 
-  const fetchTemplate = async () => {
-    const langId = Number(selectedLanguage);
-    const token = (session as any)?.accessToken;
+    const problemId = String(currentData.problem_code);
+    const langId = String(selectedLanguage);
 
-    try {
-      // 2. نحاول جلب التمبلت دائماً إذا كان لدينا token
-      if (token) {
-        const activeTemplate = await getActiveTemplateByLanguag(langId, token);
+    // 1️⃣ هل فيه سجل محفوظ لنفس المشكلة + نفس اللغة؟
+    // نتشيك على !== null فقط (مش .trim() !== "") عشان لو المستخدم
+    // مسح الكود عمدًا وخزّن "" في localStorage، نحترم رغبته ونعرض
+    // الإيديتور فاضي، بدل ما نرجع نجيب التمبلت من السيرفر تاني.
+    const savedCode = getSavedCodeForProblem(problemId, langId);
+    if (savedCode !== null) {
+      setSourceCode(savedCode);
+      return; // مفيش داعي نكمل لجلب التمبلت من السيرفر
+    }
+
+    // 2️⃣ مفيش كود محفوظ -> اجلب التمبلت من السيرفر (السلوك الأصلي)
+    const fetchTemplate = async () => {
+      const numericLangId = Number(selectedLanguage);
+      const token = (session as any)?.accessToken;
+
+      if (!token) return; // انتظر لحد ما الـ token يجي
+
+      try {
+        const activeTemplate = await getActiveTemplateByLanguag(numericLangId, token);
         if (activeTemplate?.code) {
           setSourceCode(activeTemplate.code);
-          return;
+        } else {
+          setSourceCode(`// Start coding here...\n`);
         }
+      } catch (error) {
+        setSourceCode(`// Start coding here...\n`);
       }
-      
-      // 3. إذا لم يوجد تمبلت أو حدث خطأ، نستخدم الـ Fallback
-      if (currentLangObj) {
-        setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
-      }
-    } catch (error) {
-      console.error("Error loading template:", error);
-      // في حالة الخطأ، نضع الكود الافتراضي أيضاً لضمان عدم بقاء المحرر فارغاً
-      if (currentLangObj) {
-        setSourceCode(`// Welcome to ${currentLangObj.name}\n\nint main() {\n    return 0;\n}`);
-      }
-    }
-  };
+    };
 
-  fetchTemplate();
-}, [selectedLanguage, session, isMounted, currentLangObj, setSourceCode]);
+    fetchTemplate();
+  }, [selectedLanguage, isMounted, currentData?.problem_code]);
+
+  // 🆕 useEffect جديد: يحفظ الكود تلقائيًا (مع debounce) كل ما يتغير،
+  // بما في ذلك لو المستخدم مسح الكود تمامًا (سيب الإيديتور فاضي) —
+  // في الحالة دي برضو نحفظ "" عشان نفرّق بين "مفيش كود محفوظ خالص"
+  // و "المستخدم مسحه عمدًا"، فلو رجع للصفحة يلاقيه لسه فاضي.
+  useEffect(() => {
+    if (!isMounted || !selectedLanguage || !currentData?.problem_code) return;
+
+    const problemId = String(currentData.problem_code);
+    const langId = String(selectedLanguage);
+
+    const timer = setTimeout(() => {
+      saveCodeForProblem(problemId, langId, sourceCode);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [sourceCode, selectedLanguage, isMounted, currentData?.problem_code]);
 
   return (
 <div className="flex flex-col h-[calc(100vh)] w-full bg-[#f8f9fa] overflow-hidden text-black pt-14 relative">
-      <header className="h-14 bg-white border-b flex items-center justify-between px-4 shrink-0 shadow-sm relative z-[999]">
-        <div className="flex items-center gap-4 min-w-0">
+<header className="h-14 bg-white pt-15 pb-10 border-b flex items-center justify-between px-4 shrink-0 shadow-sm relative z-30">        <div className="flex items-center gap-4 min-w-0">
        <button 
   onClick={() => router.back()}
   className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
@@ -318,9 +343,9 @@ useEffect(() => {
       {/* --- Main Content --- */}
       <main className="flex-1 flex overflow-hidden">
         {/* Left Side: Tabs */}
-        <div className="w-1/2 flex flex-col bg-white border-r">
+        <div className="w-1/2 flex flex-col bg-white border-r pt-5 pb-3">
           <Tabs defaultValue="description" className="flex flex-col h-full">
-            <div className="px-4 border-b shrink-0">
+            <div className="px-4 border-b shrink-0 pb-2">
               <TabsList className="bg-transparent h-12 gap-6 justify-start">
                 <TabsTrigger value="description" className="tab-style">
                   <FileText className="size-4 mr-2" /> Description

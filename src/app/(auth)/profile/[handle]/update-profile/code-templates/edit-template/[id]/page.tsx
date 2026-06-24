@@ -26,8 +26,7 @@ type TemplateFormData = z.infer<typeof templateSchema>;
 export default function CreateTemplatePage() {
   const { data: session } = useSession();
   const { languages , selectedLanguage} = useProblem();
-  const { setPage ,  selectedTemplate
-  } = useTemplateContext(); 
+const { setPage, selectedTemplate, refetchTemplates } = useTemplateContext();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -42,43 +41,79 @@ export default function CreateTemplatePage() {
   });
 const selectedLanguageId = watch("language_id");
 const currentLanguage = languages.find(lang => lang.id === (selectedLanguageId));
-  const onSubmit = async (data: TemplateFormData) => {
-    const token = (session as any)?.accessToken;
-if (!selectedTemplate?.template_id) {
+//   const onSubmit = async (data: TemplateFormData) => {
+//     const token = (session as any)?.accessToken;
+// if (!selectedTemplate?.template_id) {
+//     toast.error("Template selection error");
+//     return;
+//   }
+//     if (!token) {
+//       toast.error("no token found, please login again");
+//       return;
+//     }
+// const templateIdAsNumber = Number(selectedTemplate.template_id);
+//     try {
+//       setIsLoading(true);
+      
+//       const Payload = {
+//         template_name: data.template_name,
+//         language_id: Number(data.language_id), 
+//         code: data.code,
+//         created_and_updated_at: new Date().toISOString()
+//       };
+
+//       await editTemplate(Payload, templateIdAsNumber);
+      
+//       toast.success("Edit Templates successfully");
+      
+//       setPage(0); 
+//             setTimeout(() => router.back(), 1500);
+
+//     } catch (error) {
+//       console.error(error);
+//       toast.error("Failed to edit template");
+//     } finally {
+//       setIsLoading(false);
+//     }
+   
+//   };
+const onSubmit = async (data: TemplateFormData) => {
+  const token = (session as any)?.accessToken;
+
+  if (!selectedTemplate?.template_id) {
     toast.error("Template selection error");
     return;
   }
-    if (!token) {
-      toast.error("no token found, please login again");
-      return;
-    }
-const templateIdAsNumber = Number(selectedTemplate.template_id);
-    try {
-      setIsLoading(true);
-      
-      const Payload = {
-        template_name: data.template_name,
-        language_id: Number(data.language_id), 
-        code: data.code,
-        created_and_updated_at: new Date().toISOString()
-      };
 
-      await editTemplate(Payload, templateIdAsNumber);
-      
-      toast.success("Edit Templates successfully");
-      
-      setPage(0); 
-            setTimeout(() => router.back(), 1500);
+  if (!token) {
+    toast.error("no token found, please login again");
+    return;
+  }
 
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to edit template");
-    } finally {
-      setIsLoading(false);
-    }
-   
-  };
+  const templateIdAsNumber = Number(selectedTemplate.template_id);
 
+  try {
+    setIsLoading(true);
+
+    const Payload = {
+      template_name: data.template_name,
+      language_id: Number(data.language_id),
+      code: data.code,
+      created_and_updated_at: new Date().toISOString()
+    };
+
+    await editTemplate(Payload, templateIdAsNumber);
+    toast.success("Template updated successfully");
+    await refetchTemplates();
+    router.back();
+
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to edit template");
+  } finally {
+    setIsLoading(false);
+  }
+};
 const handleReset =() =>{
 reset();
 router.back();
