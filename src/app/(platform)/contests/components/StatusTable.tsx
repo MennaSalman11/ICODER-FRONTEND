@@ -274,8 +274,7 @@ export default function StatusTable({ contestId }: StatusTableProps) {
                                     <FontAwesomeIcon icon={faChevronDown} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 text-[10px] pointer-events-none" />
                                 </div>
                             </th>
-                            <th className="px-6 py-4 text-center">Time (MS)</th>
-                            <th className="px-6 py-4 text-center">Mem (MB)</th>
+                            
                             <th className="px-6 py-4 text-center">Submit Time</th>
                         </tr>
                     </thead>
@@ -303,12 +302,7 @@ export default function StatusTable({ contestId }: StatusTableProps) {
                                             {submission.language}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-center text-[13px] text-gray-500">
-                                        {submission.timeUsage ?? "—"}
-                                    </td>
-                                    <td className="px-6 py-4 text-center text-[13px] text-gray-500">
-                                        {submission.memoryUsage ?? "—"}
-                                    </td>
+                                   
                                     <td className="px-6 py-4 text-center text-[13px] text-gray-400 whitespace-nowrap">
                                         {formatSubmissionDate(submission.submittedAt)}
                                     </td>
