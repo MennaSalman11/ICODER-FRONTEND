@@ -11,6 +11,9 @@ import {
     faSpinner
 } from "@fortawesome/free-solid-svg-icons";
 
+import CodeModal from "../../../../components/CodeModal";
+
+
 interface StatusTableProps {
     contestId: string | number;
 }
@@ -31,12 +34,16 @@ export default function StatusTable({ contestId }: StatusTableProps) {
     const { data: session } = useSession();
     const token = (session as any)?.accessToken as string | undefined;
 
+
+
     // State Management
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [totalPages, setTotalPages] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
     const [pageSize] = useState(10);
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+    const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
 
     // Filter States
     const [usernameInput, setUsernameInput] = useState("");
@@ -274,7 +281,7 @@ export default function StatusTable({ contestId }: StatusTableProps) {
                                     <FontAwesomeIcon icon={faChevronDown} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 text-[10px] pointer-events-none" />
                                 </div>
                             </th>
-                            
+
                             <th className="px-6 py-4 text-center">Submit Time</th>
                         </tr>
                     </thead>
@@ -293,16 +300,22 @@ export default function StatusTable({ contestId }: StatusTableProps) {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className={`text-[13px] ${getVerdictStyle(submission.verdict)}`}>
+                                        <button
+                                            onClick={() => {
+                                                setSelectedSubmission(submission);
+                                                setIsCodeModalOpen(true);
+                                            }}
+                                            className={`text-[13px] hover:underline cursor-pointer ${getVerdictStyle(submission.verdict)}`}
+                                        >
                                             {formatVerdict(submission.verdict)}
-                                        </span>
+                                        </button>
                                     </td>
                                     <td className="px-6 py-4 text-center whitespace-nowrap">
                                         <span className="text-[13px] text-gray-600">
                                             {submission.language}
                                         </span>
                                     </td>
-                                   
+
                                     <td className="px-6 py-4 text-center text-[13px] text-gray-400 whitespace-nowrap">
                                         {formatSubmissionDate(submission.submittedAt)}
                                     </td>
@@ -345,6 +358,17 @@ export default function StatusTable({ contestId }: StatusTableProps) {
                     </div>
                 </div>
             )}
+
+            <CodeModal
+                submissionId={selectedSubmission ? Number(selectedSubmission.id) : null}
+                verdict={selectedSubmission?.verdict ?? ""}
+                ownerHandle={selectedSubmission?.userHandle ?? ""}
+                isOpen={isCodeModalOpen}
+                onClose={() => {
+                    setIsCodeModalOpen(false);
+                    setSelectedSubmission(null);
+                }}
+            />
         </div>
     );
 }

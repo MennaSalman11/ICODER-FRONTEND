@@ -21,6 +21,7 @@ interface Problem {
     judge_type?: string;
     origin?: string;
     problem_origin?: string;
+    problem_number?: number;
 }
 
 interface ProblemsTableProps {
@@ -28,7 +29,7 @@ interface ProblemsTableProps {
     beginTime?: string;
     endTime?: string;
     contestId?: string;
-
+   contest_status?: "upcoming" | "running" | "ended";
 }
 
 function getAlphaLabel(index: number): string {
@@ -42,7 +43,7 @@ function getAlphaLabel(index: number): string {
     return label;
 }
 
-export default function ProblemsTable({ problems, beginTime, endTime ,contestId}: ProblemsTableProps) {
+export default function ProblemsTable({ problems, beginTime, endTime ,contestId ,contest_status}: ProblemsTableProps) {
     const [contestStatus, setContestStatus] = useState<"upcoming" | "running" | "ended">("upcoming");
 
     useEffect(() => {
@@ -68,7 +69,7 @@ export default function ProblemsTable({ problems, beginTime, endTime ,contestId}
         return () => clearInterval(interval);
     }, [beginTime, endTime]);
 
-    console.log(problems);
+    console.log(problems.map(p => p.problem_number),"problem number");
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden w-full">
@@ -133,7 +134,7 @@ export default function ProblemsTable({ problems, beginTime, endTime ,contestId}
                                         {/* 2. رمز المسألة A, B, C */}
                                         <td className="px-6 py-4 text-center vertical-middle">
                                             <span className="text-sm font-bold text-gray-500 uppercase tracking-wide bg-gray-50 group-hover:bg-white border border-gray-100 px-2.5 py-1 rounded-md transition-colors">
-                                                {autoIndexLabel}
+                                               {problem.problem_number}
                                             </span>
                                         </td>
 

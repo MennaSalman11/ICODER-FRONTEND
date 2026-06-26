@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ContestService } from "@/src/lib/services/contest-services";
 import ContestHeader from "../components/contestHeader";
 import ContestTabs from "../components/contestTaps";
@@ -121,6 +123,7 @@ export default function ContestDashboardPage() {
             try {
                 // 1. جلب مسائل المسابقة في الخلفية
                 const problemsPromise = ContestService.getContestProblems(contestId, token)
+
                     .catch(err => {
                         console.error("Failed to fetch problems:", err);
                         return [];
@@ -131,6 +134,7 @@ export default function ContestDashboardPage() {
 
                 // 3. انتظار داتا المسائل
                 const problemsData = await problemsPromise;
+                
 
                 // 4. حفظ البيانات في الـ States
                 setContestData(details);
@@ -145,6 +149,7 @@ export default function ContestDashboardPage() {
                     origin: p.origin || p.problem_origin,
                     judge_type: p.judge_type,
                     problem_code: p.problem_code,
+                    problem_number: p.problem_number,
                 }));
 
                 setProblems(mappedProblems);
@@ -239,9 +244,30 @@ export default function ContestDashboardPage() {
                                         <FiInfo className="text-orange-500 text-xl stroke-[2.5]" />
                                         <h2>About Contest</h2>
                                     </div>
-                                    <p className="text-gray-600 text-[14.5px] leading-relaxed whitespace-pre-line">
-                                        {contestData.description || "Welcome to this contest! No description provided."}
-                                    </p>
+
+                                    {/* التعديل هنا: استبدال <p> بـ ReactMarkdown مع إضافة تنسيقات الـ prose */}
+                                    <div className="prose max-w-none text-gray-600 text-[14.5px] leading-relaxed">
+                                        {contestData.description ? (
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    h1: ({ ...props }) => <h1 className="text-xl font-bold text-gray-900 mt-4 mb-2" {...props} />,
+                                                    h2: ({ ...props }) => <h2 className="text-lg font-bold text-gray-900 mt-3 mb-2" {...props} />,
+                                                    h3: ({ ...props }) => <h3 className="text-base font-bold text-gray-800 mt-2 mb-1" {...props} />,
+                                                    ul: ({ ...props }) => <ul className="list-disc pl-5 my-2 space-y-1" {...props} />,
+                                                    ol: ({ ...props }) => <ol className="list-decimal pl-5 my-2 space-y-1" {...props} />,
+                                                    blockquote: ({ ...props }) => (
+                                                        <blockquote className="my-3 p-3 bg-slate-50 border-l-4 border-orange-500 text-gray-700 italic rounded-r-lg" {...props} />
+                                                    ),
+                                                    code: ({ ...props }) => <code className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded font-mono text-xs" {...props} />
+                                                }}
+                                            >
+                                                {contestData.description}
+                                            </ReactMarkdown>
+                                        ) : (
+                                            <p>Welcome to this contest! No description provided.</p>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="bg-blue-50/40 border border-blue-100/70 rounded-xl p-4 flex items-start gap-3">
                                     <p className="text-blue-900 text-[13.5px] font-medium leading-relaxed">
@@ -308,7 +334,7 @@ export default function ContestDashboardPage() {
                 {activeTab === "problems" && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                         {contestData.contest_status === "running" || contestData.contest_status === "ended" ? (
-                            <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestData.id} />
+                            <ProblemsTable problems={problems} endTime={contestData.end_time} contestId={contestData.id} contest_status={contestData.contest_status} />
                         ) : (
                             <div className="text-center text-gray-500">No problems available</div>
                         )}
@@ -323,7 +349,7 @@ export default function ContestDashboardPage() {
                 {/* ── Rank Tab ─────────────────────────────────────────────── */}
                 {activeTab === "rank" && (
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-12 text-center">
-                        <ScoreBoard contestId={contestId} />
+                        <ScoreBoard  />
                     </div>
                 )}
             </div>
@@ -336,6 +362,8 @@ export default function ContestDashboardPage() {
                 onSave={handleUpdateContest}
                 problems={problems}
                 groupId={contestData.group_id}
+
+
             />
         </div>
     );

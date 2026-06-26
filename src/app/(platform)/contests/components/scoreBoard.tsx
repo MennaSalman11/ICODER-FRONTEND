@@ -1,144 +1,152 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-import { ContestService } from "@/src/lib/services/contest-services";
-import { LeaderboardRow } from "@/src/types/contest";
-import { toast } from "sonner";
+import React, { useState } from "react";
 
-export default function ScoreBoard({ contestId }: { contestId: string }) {
-    const { data: session } = useSession();
-    const token = (session as any)?.accessToken;
+// فانكشن مساعدة لتحويل الأرقام لحروف أبجدية (0 -> A, 1 -> B...)
+const getProblemLetter = (index: number) => {
+    return String.fromCharCode(65 + index);
+};
 
-    const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchLeaderboard = async () => {
-            if (!contestId) return;
-
-            setIsLoading(true);
-            try {
-                const data = await ContestService.getContestLeaderboard(Number(contestId), token);
-                setLeaderboard(data);
-                console.log(data);
-            } catch (error) {
-                console.error("Failed to fetch leaderboard:", error);
-                toast.error("Failed to load scoreboard data.");
-            } finally {
-                setIsLoading(false);
+export default function ScoreBoardMock() {
+    // 1. الموك داتا مبنية بالظبط عشان تطلع نفس النتيجة اللي في الصورة
+    const [leaderboard] = useState([
+        {
+            userId: 1,
+            rank: 1,
+            handle: "roaazz",
+            solved: 8,
+            penalty: 1042,
+            problemResults: {
+                "1": { solved: true, firstAccepted: true, wrongAttempts: 0 },   // A: أخضر غامق
+                "2": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // B: أخضر فاتح
+                "3": { solved: false, firstAccepted: false, wrongAttempts: 1 },  // C: أخضر فاتح
+                "4": { solved: true, firstAccepted: true, wrongAttempts: 0 },   // D: أخضر غامق
+                "5": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // E: أخضر فاتح
+                "6": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // F: أخضر فاتح
+                "7": { solved: true, firstAccepted: true, wrongAttempts: 0 },   // G: أخضر غامق
+                "8": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // H: أخضر فاتح
             }
-        };
+        },
+        {
+            userId: 2,
+            rank: 2,
+            handle: "saam_03",
+            solved: 7,
+            penalty: 839,
+            problemResults: {
+                "1": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // A
+                "2": { solved: true, firstAccepted: true, wrongAttempts: 0 },   // B: أخضر غامق
+                "3": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // C
+                "4": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // D
+                "5": { solved: true, firstAccepted: true, wrongAttempts: 0 },  // E
+                "6": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // F
+                "7": { solved: false, firstAccepted: false, wrongAttempts: 0 },  // G
+                "8": { solved: false, firstAccepted: false, wrongAttempts: 1 }, // H: أحمر (-1)
+            }
+        },
+        {
+            userId: 3,
+            rank: 3,
+            handle: "ruaamohamedd",
+            solved: 4,
+            penalty: 612,
+            problemResults: {
+                "1": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // A
+                "2": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // B
+                "3": { solved: true, firstAccepted: true, wrongAttempts: 0 },   // C: أخضر غامق
+                "4": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // D
+                "5": { solved: true, firstAccepted: false, wrongAttempts: 0 },  // E
+                "6": { solved: false, firstAccepted: false, wrongAttempts: 1 }, // F: أحمر (-1)
+                // G و H غير موجودين (شرطة)
+            }
+        },
+       
+       
+    ]);
 
-        fetchLeaderboard();
-    }, [contestId, token]);
+    // تجميع أرقام المسائل الفريدة من الموك داتا وترتيبها (من 1 إلى 8)
+    const problemNumbers = Array.from(
+        new Set(leaderboard.flatMap((c) => Object.keys(c.problemResults || {}).map(Number)))
+    ).sort((a, b) => a - b);
 
-    // 1. استخراج كل أسماء المسائل الفريدة (A, B, C...) ديناميكياً لعرضها في الهيدر
-    const problemLabels = Array.from(
-        new Set(leaderboard.flatMap((c) => Object.keys(c.problemResults || {})))
-    ).sort();
-
-    if (isLoading) {
-        return (
-            <div className="w-full flex justify-center py-12">
-                <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
+    // تحويل الأرقام إلى الحروف المقابلة لها (1->A, 2->B...)
+    const problemLabels = problemNumbers.map((num, index) => ({
+        numberKey: String(num), // حوّلناه لـ string هنا علطول عشان يطابق الـ object keys
+        letterLabel: getProblemLetter(index)
+    }));
 
     return (
-        <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden p-4 sm:p-6">
-
-            {/* عنوان الكومبوننت */}
-            <div className="mb-4 sm:mb-6 flex items-start justify-between">
-                <h2 className="text-lg sm:text-xl font-bold text-[#1b4583]">Scoreboard</h2>
+        <div className="w-full bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden p-6">
+            {/* عنوان الكارت */}
+            <div className="mb-6">
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Scoreboard</h2>
             </div>
 
-            {/* الجدول - حاوية التمرير الأفقي */}
-            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-200">
-                <table className="w-full min-w-max border-collapse text-left table-fixed sm:table-auto">
+            {/* الجدول responsive وبيدعم التمرير الأفقي */}
+            <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                <table className="w-full min-w-max border-collapse text-left text-sm">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-gray-100">
-                            <th className="px-2 sm:px-4 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider w-12 sm:w-16 text-center">Rank</th>
-                            <th className="px-3 sm:px-6 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider min-w-[120px] sm:min-w-[180px]">Handle</th>
-                            <th className="px-2 sm:px-4 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider w-16 sm:w-24 text-center">Solved</th>
-                            <th className="px-2 sm:px-4 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider w-16 sm:w-24 text-center">Penalty</th>
+                        <tr className="bg-slate-50 border-b border-gray-200">
+                            <th className="px-4 py-4 text-center font-bold text-slate-700 uppercase text-xs tracking-wider w-16">Rank</th>
+                            <th className="px-6 py-4 font-bold text-slate-700 uppercase text-xs tracking-wider min-w-[160px]">Handle</th>
+                            <th className="px-4 py-4 text-center font-bold text-slate-700 uppercase text-xs tracking-wider w-24">Solved</th>
+                            <th className="px-4 py-4 text-center font-bold text-slate-700 uppercase text-xs tracking-wider w-24">Penalty</th>
 
-                            {/* عواميد المسائل الديناميكية */}
-                            {problemLabels.map((label) => (
-                                <th key={label} className="px-1 sm:px-2 py-2.5 sm:py-3.5 text-[11px] sm:text-xs font-bold text-[#1b4583] uppercase tracking-wider text-center w-10 sm:w-14">
-                                    {label}
+                            {/* هيدر المسائل الديناميكي (A, B, C...) */}
+                            {problemLabels.map((item) => (
+                                <th key={item.numberKey} className="px-2 py-4 text-center font-bold text-blue-900 uppercase text-xs tracking-wider w-14">
+                                    {item.letterLabel}
                                 </th>
                             ))}
                         </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 bg-white">
                         {leaderboard.map((row) => (
-                            <tr key={row.userId} className="hover:bg-slate-50/50 transition-colors duration-150">
-                                {/* الـ Rank */}
-                                <td className="px-2 sm:px-4 py-3 sm:py-4 text-center text-xs sm:text-sm font-bold text-gray-800">
-                                    {row.rank}
-                                </td>
+                            <tr key={row.userId} className="hover:bg-slate-50/60 transition-colors duration-150">
+                                <td className="px-4 py-4 text-center font-bold text-slate-800">{row.rank}</td>
+                                <td className="px-6 py-4 font-medium text-blue-700 hover:underline cursor-pointer">{row.handle}</td>
+                                <td className="px-4 py-4 text-center font-bold text-slate-800 text-base">{row.solved}</td>
+                                <td className="px-4 py-4 text-center font-medium text-gray-400 font-mono">{row.penalty}</td>
 
-                                {/* اسم المستخدم */}
-                                <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold text-[#1b4583] hover:underline cursor-pointer truncate max-w-[140px] sm:max-w-none">
-                                    {row.handle}
-                                </td>
-
-                                {/* عدد المسائل المحلولة */}
-                                <td className="px-2 sm:px-4 py-3 sm:py-4 text-center text-xs sm:text-sm font-bold text-gray-800">
-                                    {row.totalScore}
-                                </td>
-
-                                {/* الـ Penalty */}
-                                <td className="px-2 sm:px-4 py-3 sm:py-4 text-center text-xs sm:text-sm font-medium text-gray-500">
-                                    {row.totalPenalty}
-                                </td>
-
-                                
-
-                                {/* خلايا حالة المسائل */}
-                                {problemLabels.map((label) => {
-                                    const result = row.problemResults[label];
-
-                                    // 1. لو المتسابق لم يقم بأي محاولة على المسألة دي نهائياً
+                                {/* رسم خلايا المسائل بالظبط بنفس ألوان الصورة */}
+                                {problemLabels.map((item) => {
+                                    const result = row.problemResults[item.numberKey as keyof typeof row.problemResults];
+                                    // 1. لم يتم تقديم أي حل (-)
                                     if (!result) {
                                         return (
-                                            <td key={label} className="px-1 sm:px-2 py-3 sm:py-4 text-center text-xs sm:text-sm text-gray-300">
-                                                -
-                                            </td>
+                                            <td key={item.numberKey} className="px-2 py-4 text-center text-gray-400 font-medium font-mono border-l border-gray-50">-</td>
                                         );
                                     }
 
-                                    // 2. حالة الـ First Accepted -> أخضر غامق
+                                    // 2. أول من حل المسألة (أخضر غامق احترافي)
                                     if (result.solved && result.firstAccepted) {
                                         return (
-                                            <td key={label} className="px-1 sm:px-2 py-3 sm:py-4 text-center text-xs sm:text-sm font-bold bg-green-600 text-white border border-white">
+                                            <td key={item.numberKey} className="px-2 py-4 text-center font-semibold bg-emerald-700 text-white border border-white font-mono shadow-sm">
                                                 {result.wrongAttempts + 1}
                                             </td>
                                         );
                                     }
 
-                                    // 3. حالة الـ Solved العادية -> أخضر فاتح
+                                    // 3. تم الحل بنجاح ولكن ليس الأول (أخضر فاتح مريح)
                                     if (result.solved) {
                                         return (
-                                            <td key={label} className="px-1 sm:px-2 py-3 sm:py-4 text-center text-xs sm:text-sm font-medium bg-green-50 text-green-600 border border-white">
+                                            <td key={item.numberKey} className="px-2 py-4 text-center font-semibold bg-emerald-50 text-emerald-600 border border-white font-mono">
                                                 {result.wrongAttempts + 1}
                                             </td>
                                         );
                                     }
 
-                                    // 4. حالة المحاولات الخاطئة وبدون حل حتي الآن -> أحمر فاتح
+                                    // 4. محاولات خاطئة ولم تحل بعد (أحمر فاتح)
                                     if (!result.solved && result.wrongAttempts > 0) {
                                         return (
-                                            <td key={label} className="px-1 sm:px-2 py-3 sm:py-4 text-center text-xs sm:text-sm font-medium bg-red-50 text-red-500 border border-white">
+                                            <td key={item.numberKey} className="px-2 py-4 text-center font-semibold bg-rose-50 text-rose-500 border border-white font-mono">
                                                 -{result.wrongAttempts}
                                             </td>
                                         );
                                     }
 
-                                    return <td key={label} className="px-1 sm:px-2 py-3 sm:py-4 text-center text-xs sm:text-sm text-gray-300">-</td>;
+                                    return <td key={item.numberKey} className="px-2 py-4 text-center text-gray-400 font-medium font-mono border-l border-gray-50">-</td>;
                                 })}
                             </tr>
                         ))}

@@ -26,7 +26,7 @@ interface ContestFormData {
     description: string;
     beginTime: string;
     length: string;
-    contestType: "CLASSICAL" | "GROUP";
+    contest_type: "classical" | "group";
     openness: "public" | "protected" | "private";
     password?: string;
     historyRank: boolean;
@@ -65,7 +65,7 @@ export default function EditContestModal({
         description: "",
         beginTime: "",
         length: "",
-        contestType: "CLASSICAL",
+        contest_type: "classical",
         openness: "public",
         password: "",
         historyRank: false,
@@ -170,7 +170,7 @@ export default function EditContestModal({
                 description: initialData.description || "",
                 beginTime: localISOTime,
                 length: initialData.length || "",
-                contestType: initialData.contest_type || initialData.contestType || "CLASSICAL",
+                contest_type: initialData.contest_type || initialData.contestType || "CLASSICAL",
                 openness: initialData.contest_openness || initialData.openness || "public",
                 password: initialData.password || "",
                 historyRank: !!(initialData.history_rank ?? initialData.historyRank),
@@ -258,7 +258,7 @@ export default function EditContestModal({
             description: formData.description.trim(),
             begin_time: beginTimeISO,
             length: lengthFormatted,
-            contest_type: formData.contestType,
+            contest_type: formData.contest_type,
             contest_openness: formData.openness,
             history_rank: formData.historyRank,
             problem_set: problemSet,
@@ -376,12 +376,12 @@ export default function EditContestModal({
                                     <div>
                                         <label className={labelCls}>Contest Type</label>
                                         <select
-                                            value={formData.contestType}
-                                            onChange={(e) => handleChange("contestType", e.target.value as any)}
+                                            value={formData.contest_type}
+                                            onChange={(e) => handleChange("contest_type", e.target.value as any)}
                                             className={selectCls}
                                         >
-                                            <option value="CLASSICAL">CLASSICAL</option>
-                                            <option value="GROUP">GROUP</option>
+                                            <option value="classical">CLASSICAL</option>
+                                            <option value="group">GROUP</option>
                                         </select>
                                     </div>
                                     <div>
